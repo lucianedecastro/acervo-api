@@ -1,4 +1,3 @@
-// src/main/java/br/com/acervodaatletabrasileira/acervoapi/repository/UsuarioAdminRepository.java
 package br.com.acervodaatletabrasileira.acervoapi.repository;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.UsuarioAdmin;
@@ -8,6 +7,9 @@ import reactor.core.publisher.Mono;
 
 @Repository
 public interface UsuarioAdminRepository extends FirestoreReactiveRepository<UsuarioAdmin> {
+    // CORREÇÃO: Removido o <UsuarioAdmin, String> para <UsuarioAdmin>
+    // A sua versão do Spring Data Firestore deve inferir o tipo de ID.
+
     // Método customizado para buscar um usuário pelo seu email
     Mono<UsuarioAdmin> findByEmail(String email);
 }

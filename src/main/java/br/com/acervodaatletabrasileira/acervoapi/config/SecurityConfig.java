@@ -23,7 +23,7 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthFilter jwtAuthFilter;
 
-    // Array com as rotas do Swagger que devem ser públicas
+    // Rotas públicas do Swagger
     private static final String[] SWAGGER_WHITELIST = {
             "/v3/api-docs/**",
             "/swagger-ui.html",
@@ -37,16 +37,16 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
-
                 .authorizeExchange(exchange -> exchange
-                        // ALTERAÇÃO: Adicionada regra para a URL raiz
                         .pathMatchers("/").permitAll()
-
                         .pathMatchers(SWAGGER_WHITELIST).permitAll()
+
+                        // --- ROTA TEMPORÁRIA REMOVIDA DAQUI ---
+
                         .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
                         .pathMatchers(HttpMethod.GET, "/atletas").permitAll()
                         .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
-                        .anyExchange().authenticated()
+                        .anyExchange().authenticated() // TUDO MAIS EXIGE AUTENTICAÇÃO
                 )
                 .addFilterBefore(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION);
 
@@ -56,9 +56,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173", "http://www.acervodaatletabrasileira.com.br"));
+        configuration.setAllowedOrigins(List.of(
+                "https://acervo-front-one.vercel.app",
+                "https://acervodaatletabrasileira.com.br",
+                "http://localhost:3000",
+                "http://127.0.0.1:3000"
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

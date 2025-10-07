@@ -12,17 +12,23 @@ target/
 log/
 tmp/
 
-# ARQUIVOS SENSÍVEIS E DE CONFIGURAÇÃO LOCAL
+# ARQUIVOS SENSÍVEIS E DE CONFIGURAÇÃO LOCAL (CORREÇÃO)
 ##############################################
+acervo-carmen-lydia-7ba9d456861e.json
 
-# Chaves de Serviço do GCP (NUNCA DEVE SUBIR PARA O GITHUB)
-# O caminho completo com base nos seus logs:
-acervo-api/src/main/resources/sua-chave-gcp.json
+# Bloqueia qualquer chave de serviço genérica:
+*.json
+*.key
 acervo-api/src/main/resources/*.key
 
-# Arquivos de Configuração Específicos Locais
-# O caminho completo com base nos seus logs:
-acervo-api/src/main/resources/application-local.properties
-application-local.properties
-application-dev.properties
+# --- ARQUIVOS DE CONFIGURAÇÃO LOCAL ---
+
+# 1. Bloqueia o arquivo application-local.properties em qualquer subdiretorio
+**/application-local.properties
+
+# 2. Bloqueia o arquivo application-dev.properties
+**/application-dev.properties
+
+# 3. Bloqueia qualquer arquivo de ambiente
 .env
+.env.local

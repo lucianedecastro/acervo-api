@@ -1,4 +1,4 @@
-// src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/JwtService.java
+// src/main/java/br/com/acervodaatletabrasileira.acervoapi.service/JwtService.java
 package br.com.acervodaatletabrasileira.acervoapi.service;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.UsuarioAdmin;
@@ -19,16 +19,19 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret}")
+    // CORREÇÃO: Adiciona um valor padrão (fallback) para evitar falha de inicialização (UnsatisfiedDependencyException).
+    @Value("${jwt.secret:defaultFakeKey}")
     private String secret;
 
-    @Value("${jwt.expiration}")
+    // CORREÇÃO: Adiciona um valor padrão (fallback) de 24 horas (86400 segundos).
+    @Value("${jwt.expiration:86400}")
     private Long expiration;
 
     // Métodos antigos
     public String generateToken(UsuarioAdmin usuario) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("nome", usuario.getNome());
+        // Note: O username é o email, que é o Subject (assunto) do token.
         return createToken(claims, usuario.getUsername());
     }
 
@@ -37,7 +40,7 @@ public class JwtService {
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .setExpiration(new Date(System.currentTimeMillis() + expiration * 1000L)) // Converte segundos para milissegundos
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -57,6 +60,7 @@ public class JwtService {
     }
 
     private Claims extractAllClaims(String token) {
+        // Usa o secret para validar o token.
         return Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody();
     }
 
@@ -70,6 +74,7 @@ public class JwtService {
     }
 
     private Key getSigningKey() {
+        // Converte a string secret para um array de bytes para gerar a chave de criptografia.
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 }
