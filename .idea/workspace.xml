@@ -5,30 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f0b245dc-5670-4984-a57b-af6a8bf547d1" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/config/WebConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/acervo-api/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/.mvn/wrapper/maven-wrapper.properties" beforeDir="false" afterPath="$PROJECT_DIR$/.mvn/wrapper/maven-wrapper.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/AcervoApiApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/AcervoApiApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/config/JwtAuthFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/config/JwtAuthFilter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/config/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/controller/AtletaController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/controller/AtletaController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/controller/AuthController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/dto/AuthRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/dto/AuthRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/model/Atleta.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/model/Atleta.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/model/UsuarioAdmin.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/model/UsuarioAdmin.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/repository/AtletaRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/repository/AtletaRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/repository/UsuarioAdminRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/repository/UsuarioAdminRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/AtletaService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/AtletaService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/AuthService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/CloudStorageService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/CloudStorageService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/JwtService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/JwtService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/UserDetailsServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/UserDetailsServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acervo-api/src/test/java/br/com/acervodaatletabrasileira/acervoapi/AcervoApiApplicationTests.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/br/com/acervodaatletabrasileira/acervoapi/AcervoApiApplicationTests.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cloudbuild.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/cloudbuild.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
