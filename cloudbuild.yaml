@@ -5,15 +5,15 @@ steps:
     dir: 'acervo-api'
     args: ['clean', 'package', '-DskipTests']
 
-  # 2. Construir a Imagem do Docker (Contexto ajustado para a subpasta)
+  # 2. Construir a Imagem do Docker (Ajuste Definitivo)
   - name: 'gcr.io/cloud-builders/docker'
+    # A CHAVE AQUI: Diga ao Cloud Build para ir para a pasta que contém o Dockerfile
+    dir: 'acervo-api'
     args: [
       'build',
       '-t',
       'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA',
-      '-f',
-      'acervo-api/Dockerfile', # O Dockerfile está DENTRO de acervo-api
-      'acervo-api'             # O contexto do build (o código) é a pasta acervo-api
+      '.'  # O ponto significa 'use esta pasta atual (acervo-api) como contexto'
     ]
 
   # 3. Enviar a Imagem para o Google Container Registry
@@ -25,7 +25,7 @@ steps:
     args: [
       'run',
       'deploy',
-      'acervo-api', # <--- SEU NOME DE SERVIÇO EXISTENTE
+      'acervo-api',
       '--image',
       'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA',
       '--region',
