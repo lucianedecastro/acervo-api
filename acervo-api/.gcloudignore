@@ -1,0 +1,10 @@
+# Ignora ficheiros de build local e cache da IDE
+target/
+.idea/
+
+# Ignora dependências do Node (não aplicável, mas boa prática)
+node_modules/
+
+# Ficheiros de log ou texto que não fazem parte do código-fonte
+*.log
+tree.txt

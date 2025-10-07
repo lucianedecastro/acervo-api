@@ -1,0 +1,28 @@
+# Arquivos de Build/IDE (Spring Boot / Maven / IntelliJ)
+##############################################
+target/
+.mvn/
+*.iml
+.idea/
+.vscode/
+
+# Arquivos de Log e Temporários
+##############################################
+*.log
+log/
+tmp/
+
+# ARQUIVOS SENSÍVEIS E DE CONFIGURAÇÃO LOCAL
+##############################################
+
+# Chaves de Serviço do GCP (NUNCA DEVE SUBIR PARA O GITHUB)
+# O caminho completo com base nos seus logs:
+acervo-api/src/main/resources/sua-chave-gcp.json
+acervo-api/src/main/resources/*.key
+
+# Arquivos de Configuração Específicos Locais
+# O caminho completo com base nos seus logs:
+acervo-api/src/main/resources/application-local.properties
+application-local.properties
+application-dev.properties
+.env
