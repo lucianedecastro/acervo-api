@@ -1,24 +1,25 @@
 steps:
-  # 1️⃣ - Empacotar o Spring Boot em um JAR dentro da subpasta 'acervo-api'
-  - name: 'maven:3.8.3-eclipse-temurin-17'
+  # 1️⃣ Empacotar o Spring Boot em um JAR
+  - name: 'maven:3.8.8-eclipse-temurin-17'
     entrypoint: 'mvn'
     dir: 'acervo-api'
     args: ['clean', 'package', '-DskipTests']
 
-  # 2️⃣ - Construir a imagem Docker usando o Dockerfile dentro da subpasta
+  # 2️⃣ Construir a imagem Docker a partir da subpasta acervo-api
   - name: 'gcr.io/cloud-builders/docker'
+    dir: 'acervo-api'
     args: [
       'build',
       '-t', 'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA',
-      '-f', 'acervo-api/Dockerfile',
-      'acervo-api'
+      '-f', 'Dockerfile',
+      '.'
     ]
 
-  # 3️⃣ - Enviar a imagem para o Google Container Registry (ou Artifact Registry)
+  # 3️⃣ Enviar imagem ao Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA']
 
-  # 4️⃣ - Implantar no Cloud Run (ajuste conforme o nome do serviço e região)
+  # 4️⃣ Implantar no Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
     args: [
       'run', 'deploy', 'acervo-api',

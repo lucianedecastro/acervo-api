@@ -5,12 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f0b245dc-5670-4984-a57b-af6a8bf547d1" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/cloudbuild.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/acervo-api/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/acervo-api/Dockerfile" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/acervo-api/src/main/resources/application-local.properties" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/acervo-api/src/main/resources/sua-chave-gcp.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cloudbuild.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/cloudbuild.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
