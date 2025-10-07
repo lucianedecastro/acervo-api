@@ -58,6 +58,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(
                 "https://acervo-front-one.vercel.app",
+                "https://www.acervodaatletabrasileira.com.br",
                 "https://acervodaatletabrasileira.com.br",
                 "http://localhost:3000",
                 "http://127.0.0.1:3000"
