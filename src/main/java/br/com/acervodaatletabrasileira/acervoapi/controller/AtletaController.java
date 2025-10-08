@@ -2,11 +2,11 @@ package br.com.acervodaatletabrasileira.acervoapi.controller;
 
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaFormDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
-import br.com.acervodaatletabrasileira.acervoapi.dto.FotoAcervo; // Corrigido para dto.FotoAcervo
+import br.com.acervodaatletabrasileira.acervoapi.dto.FotoAcervo;
 import br.com.acervodaatletabrasileira.acervoapi.service.AtletaService;
 import br.com.acervodaatletabrasileira.acervoapi.service.CloudStorageService;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper; // NECESSÁRIO
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -19,6 +19,7 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers; // <--- IMPORT CRÍTICO PARA AGENDAMENTO
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,7 +34,6 @@ public class AtletaController {
     @Autowired
     private AtletaService atletaService;
 
-    // Injeção do ObjectMapper é CRÍTICA para ler o JSON enviado pelo frontend
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -62,7 +62,7 @@ public class AtletaController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // --- CREATE: Adiciona uma nova atleta (CORRETO) ---
+    // --- CREATE: Adiciona uma nova atleta (COM CORREÇÃO DE THREAD) ---
     @Operation(summary = "Adiciona uma nova atleta (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Atleta criada com sucesso"),
@@ -76,22 +76,16 @@ public class AtletaController {
 
         AtletaFormDTO dto;
         try {
-            // DESSERIALIZAÇÃO MANUAL: Converte a String JSON em DTO (soluciona o 415/falha)
             dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
         } catch (JsonProcessingException e) {
-            // Em caso de falha na desserialização do JSON
             return Mono.error(new IllegalArgumentException("Formato de dados 'dados' inválido. Deve ser JSON.", e));
         }
 
-        // 1. Faz o upload da imagem e obtém a URL (em Mono, para ser reativo)
-        Mono<String> imageUrlMono = Mono.fromCallable(() -> {
-            try {
-                return storageService.uploadFile(filePart);
-            } catch (IOException e) {
-                // Lança RuntimeException para ser capturada pelo WebFlux
-                throw new RuntimeException("Falha no upload do arquivo para o GCS", e);
-            }
-        });
+        // 1. Faz o upload da imagem e obtém a URL (com agendamento)
+        // MUDANÇA CRÍTICA: Chama o serviço (que retorna um Mono) e agenda o bloqueio
+        Mono<String> imageUrlMono = storageService.uploadFile(filePart)
+                // CORREÇÃO: Move a operação bloqueante para um thread de I/O separado
+                .subscribeOn(Schedulers.boundedElastic());
 
         // 2. Encadear a operação: upload -> montar modelo -> salvar no Firestore
         return imageUrlMono
@@ -116,7 +110,7 @@ public class AtletaController {
                 .flatMap(atletaService::save);
     }
 
-    // --- UPDATE: Atualiza informações de uma atleta (CORRIGIDO) ---
+    // --- UPDATE: Atualiza informações de uma atleta (COM CORREÇÃO DE THREAD) ---
     @Operation(summary = "Atualiza informações de uma atleta (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Atleta atualizada com sucesso"),
@@ -127,11 +121,10 @@ public class AtletaController {
     public Mono<ResponseEntity<Atleta>> updateAtleta(
             @PathVariable("id") String id,
             @RequestPart(value = "file", required = false) Mono<FilePart> filePartMono,
-            @RequestPart("dados") String dadosJson) { // CORRIGIDO: Recebe como String
+            @RequestPart("dados") String dadosJson) {
 
         AtletaFormDTO dto;
         try {
-            // DESSERIALIZAÇÃO MANUAL: Converte a String JSON em DTO (soluciona o 415/falha)
             dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
         } catch (JsonProcessingException e) {
             return Mono.error(new IllegalArgumentException("Formato de dados 'dados' inválido. Deve ser JSON.", e));
@@ -142,18 +135,13 @@ public class AtletaController {
                 .flatMap(atletaExistente -> {
                     // 2. Processar o upload (opcional)
                     Mono<String> newImageUrlMono = filePartMono
-                            .flatMap(filePart -> {
-                                return Mono.fromCallable(() -> {
-                                    try {
-                                        return storageService.uploadFile(filePart);
-                                    } catch (IOException e) {
-                                        throw new RuntimeException("Falha no upload do arquivo para o GCS", e);
-                                    }
-                                });
-                            })
+                            .flatMap(filePart ->
+                                    // Chama o serviço (que retorna Mono) e agenda o bloqueio
+                                    storageService.uploadFile(filePart)
+                                            .subscribeOn(Schedulers.boundedElastic()) // CORREÇÃO: Agendamento do bloqueio
+                            )
                             // Se nenhum arquivo for enviado, usa a URL existente da primeira foto
                             .defaultIfEmpty(
-                                    // CORREÇÃO: Usar .url() ao invés de .getUrl()
                                     atletaExistente.getFotos() != null && !atletaExistente.getFotos().isEmpty() ?
                                             atletaExistente.getFotos().get(0).url() : null
                             );
@@ -171,7 +159,6 @@ public class AtletaController {
 
                         // Somente adiciona a nova foto se o upload foi feito
                         if (finalImageUrl != null && finalImageUrl.contains("storage.googleapis.com")) {
-                            // Construtor de Record é OK
                             FotoAcervo novaFoto = new FotoAcervo(finalImageUrl, dto.legenda());
                             fotos.add(novaFoto);
                         }
