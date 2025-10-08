@@ -2,7 +2,7 @@ package br.com.acervodaatletabrasileira.acervoapi;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.UsuarioAdmin;
 import br.com.acervodaatletabrasileira.acervoapi.repository.UsuarioAdminRepository;
-import com.fasterxml.jackson.databind.ObjectMapper; // <--- NOVO IMPORT NECESSÁRIO
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.info.Info;
@@ -29,7 +29,8 @@ public class AcervoApiApplication {
 		SpringApplication.run(AcervoApiApplication.class, args);
 	}
 
-	// <--- NOVO: BEAN PARA OBJECT MAPPER (Garante a injeção no Controller)
+	// ✅ CORREÇÃO: BEAN PARA OBJECT MAPPER
+	// Garante que o ObjectMapper esteja disponível para o AtletaController.
 	@Bean
 	public ObjectMapper objectMapper() {
 		return new ObjectMapper();

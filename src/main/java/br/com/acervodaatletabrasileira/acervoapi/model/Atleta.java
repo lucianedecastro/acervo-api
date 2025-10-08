@@ -2,6 +2,7 @@
 
 package br.com.acervodaatletabrasileira.acervoapi.model;
 
+import br.com.acervodaatletabrasileira.acervoapi.dto.FotoAcervo;
 import com.google.cloud.firestore.annotation.DocumentId;
 import com.google.cloud.spring.data.firestore.Document;
 import lombok.Data;
