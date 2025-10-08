@@ -1,8 +1,12 @@
+// src/main/java/.../model/Atleta.java (ATUALIZADO)
+
 package br.com.acervodaatletabrasileira.acervoapi.model;
 
 import com.google.cloud.firestore.annotation.DocumentId;
-import com.google.cloud.spring.data.firestore.Document; // MUDANÇA APLICADA AQUI
+import com.google.cloud.spring.data.firestore.Document;
 import lombok.Data;
+
+import java.util.List;
 
 @Data
 @Document(collectionName = "atletas")
@@ -14,6 +18,9 @@ public class Atleta {
     private String nome;
     private String modalidade;
     private String biografia;
-    private String imagemUrl;
     private String competicao;
+
+
+    private List<FotoAcervo> fotos;
+
 }

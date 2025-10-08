@@ -28,17 +28,27 @@ public class AtletaService {
         return atletaRepository.save(atleta);
     }
 
+    // --- MÉTODO UPDATE CORRIGIDO ---
     public Mono<Atleta> update(String id, Atleta atleta) {
         return atletaRepository.findById(id)
                 .flatMap(existingAtleta -> {
+                    // Atualiza campos de texto
                     existingAtleta.setNome(atleta.getNome());
                     existingAtleta.setBiografia(atleta.getBiografia());
                     existingAtleta.setModalidade(atleta.getModalidade());
                     existingAtleta.setCompeticao(atleta.getCompeticao());
-                    existingAtleta.setImagemUrl(atleta.getImagemUrl());
+
+                    // ATUALIZAÇÃO DA GALERIA:
+                    // Copia toda a nova lista de fotos (se existir)
+                    // Nota: O AtletaController deve garantir que esta lista seja atualizada antes de chamar este Service
+                    if (atleta.getFotos() != null) {
+                        existingAtleta.setFotos(atleta.getFotos());
+                    }
+
                     return atletaRepository.save(existingAtleta);
                 });
     }
+    // --- FIM DO MÉTODO UPDATE CORRIGIDO ---
 
     public Mono<Void> deleteById(String id) {
         // Futuramente, aqui também entrará a lógica de auditoria
