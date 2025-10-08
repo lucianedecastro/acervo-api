@@ -5,6 +5,7 @@ import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
 import br.com.acervodaatletabrasileira.acervoapi.model.FotoAcervo;
 import br.com.acervodaatletabrasileira.acervoapi.service.AtletaService;
 import br.com.acervodaatletabrasileira.acervoapi.service.CloudStorageService;
+import com.fasterxml.jackson.databind.ObjectMapper; // NOVO IMPORT
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -30,25 +31,27 @@ import java.util.Map;
 @Tag(name = "Atletas", description = "Endpoints para gerenciamento de atletas")
 public class AtletaController {
 
-    // Injeção via campo (mantido para evitar alterações estruturais)
     @Autowired
     private AtletaService atletaService;
 
+    // NOVO: ObjectMapper para converter a String JSON em DTO
+    @Autowired
+    private ObjectMapper objectMapper;
+
     private final CloudStorageService storageService;
 
-    // Construtor com injeção (mantido)
     public AtletaController(CloudStorageService storageService) {
         this.storageService = storageService;
     }
 
-    // --- READ: Listar todas as atletas cadastradas ---
+    // --- READ: Listar e Buscar (Não Alterado) ---
+    // ... (Métodos getAllAtletas e getAtletaById permanecem inalterados) ...
     @Operation(summary = "Lista todas as atletas cadastradas")
     @GetMapping
     public Flux<Atleta> getAllAtletas() {
         return atletaService.findAll();
     }
 
-    // --- READ: Busca uma atleta pelo seu ID único ---
     @Operation(summary = "Busca uma atleta pelo seu ID único")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Atleta encontrada"),
@@ -61,32 +64,32 @@ public class AtletaController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // --- CREATE: Adiciona uma nova atleta (CORRIGIDO) ---
-    // Recebe o arquivo e os dados do formulário
+    // --- CREATE: Adiciona uma nova atleta (CORREÇÃO DE DESSERIALIZAÇÃO) ---
     @Operation(summary = "Adiciona uma nova atleta (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Atleta criada com sucesso"),
             @ApiResponse(responseCode = "401", description = "Não autorizado")
     })
-    @PostMapping(consumes = {"multipart/form-data"}) // Consome FormData
+    @PostMapping(consumes = {"multipart/form-data"})
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Atleta> createAtleta(
-            // Recebe o arquivo (com o nome 'file' do frontend)
             @RequestPart("file") FilePart filePart,
-            // Recebe os demais dados do formulário (JSON)
-            @RequestPart("dados") AtletaFormDTO dto) { // MUDANÇA: Usa AtletaFormDTO
+            // CORREÇÃO: Recebe como String e desserializa manualmente
+            @RequestPart("dados") String dadosJson) throws IOException {
 
-        // 1. Faz o upload da imagem e obtém a URL (em Mono, para ser reativo)
+        // 1. DESSERIALIZAÇÃO MANUAL: Converte a String JSON em DTO
+        AtletaFormDTO dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
+
+        // 2. Faz o upload da imagem e obtém a URL (em Mono, para ser reativo)
         Mono<String> imageUrlMono = Mono.fromCallable(() -> {
             try {
                 return storageService.uploadFile(filePart);
             } catch (IOException e) {
-                // Em caso de falha de upload, lançamos uma exceção
                 throw new RuntimeException("Falha no upload do arquivo para o GCS", e);
             }
         });
 
-        // 2. Encadear a operação: upload -> montar modelo -> salvar no Firestore
+        // 3. Encadear a operação: upload -> montar modelo -> salvar no Firestore
         return imageUrlMono
                 .map(imageUrl -> {
                     // Monta o objeto FotoAcervo
@@ -102,30 +105,34 @@ public class AtletaController {
                     // Adiciona a nova foto à galeria
                     List<FotoAcervo> fotos = new ArrayList<>();
                     fotos.add(novaFoto);
-                    novaAtleta.setFotos(fotos); // Usa a lista de fotos
+                    novaAtleta.setFotos(fotos);
 
                     return novaAtleta;
                 })
-                .flatMap(atletaService::save); // 3. Salva no Firestore
+                .flatMap(atletaService::save);
     }
 
-    // --- UPDATE: Atualiza informações de uma atleta (CORRIGIDO) ---
+    // --- UPDATE: Atualiza informações de uma atleta (CORREÇÃO DE DESSERIALIZAÇÃO) ---
     @Operation(summary = "Atualiza informações de uma atleta (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Atleta atualizada com sucesso"),
             @ApiResponse(responseCode = "401", description = "Não autorizado"),
             @ApiResponse(responseCode = "404", description = "Atleta não encontrada")
     })
-    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"}) // Consome FormData
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public Mono<ResponseEntity<Atleta>> updateAtleta(
             @PathVariable("id") String id,
             @RequestPart(value = "file", required = false) Mono<FilePart> filePartMono,
-            @RequestPart("dados") AtletaFormDTO dto) { // MUDANÇA: Usa AtletaFormDTO
+            // CORREÇÃO: Recebe como String e desserializa manualmente
+            @RequestPart("dados") String dadosJson) throws IOException {
 
-        // 1. Buscar a atleta existente
+        // 1. DESSERIALIZAÇÃO MANUAL: Converte a String JSON em DTO
+        AtletaFormDTO dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
+
+        // 2. Buscar a atleta existente
         return atletaService.findById(id)
                 .flatMap(atletaExistente -> {
-                    // 2. Processar o upload (opcional)
+                    // 3. Processar o upload (opcional)
                     Mono<String> newImageUrlMono = filePartMono
                             .flatMap(filePart -> {
                                 return Mono.fromCallable(() -> {
@@ -136,26 +143,24 @@ public class AtletaController {
                                     }
                                 });
                             })
-                            // Se nenhum arquivo for enviado, usa a URL existente (a URL da última foto, se existir)
+                            // Se nenhum arquivo for enviado, usa a URL existente
                             .defaultIfEmpty(
                                     atletaExistente.getFotos() != null && !atletaExistente.getFotos().isEmpty() ?
                                             atletaExistente.getFotos().get(0).getUrl() : null
                             );
 
-                    // 3. Encadear: obter URL -> atualizar metadados -> salvar
+                    // 4. Encadear: obter URL -> atualizar metadados -> salvar
                     return newImageUrlMono.flatMap(finalImageUrl -> {
-                        // Copiar metadados
+                        // Copiar metadados do DTO
                         atletaExistente.setNome(dto.nome());
                         atletaExistente.setModalidade(dto.modalidade());
                         atletaExistente.setBiografia(dto.biografia());
                         atletaExistente.setCompeticao(dto.competicao());
 
-                        // 4. Atualizar a lista de fotos
+                        // 5. Atualizar a lista de fotos (lógica de anexo permanece)
                         List<FotoAcervo> fotos = Optional.ofNullable(atletaExistente.getFotos()).orElseGet(ArrayList::new);
 
                         if (finalImageUrl != null && !finalImageUrl.isEmpty()) {
-                            // Se há uma nova imagem, adicionamos ela ou substituímos a primeira, dependendo da regra de negócios.
-                            // Por simplicidade, vamos adicionar a nova imagem.
                             FotoAcervo novaFoto = new FotoAcervo(finalImageUrl, dto.legenda());
                             fotos.add(novaFoto);
                         }
@@ -168,7 +173,7 @@ public class AtletaController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // --- DELETE: Remove uma atleta do banco de dados ---
+    // --- DELETE: Remove uma atleta do banco de dados (Não Alterado) ---
     @Operation(summary = "Remove uma atleta do banco de dados (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Atleta deletada com sucesso"),
@@ -176,7 +181,6 @@ public class AtletaController {
     })
     @DeleteMapping("/{id}")
     public Mono<Void> deleteAtleta(@PathVariable("id") String id) {
-        // Lógica de exclusão da foto do GCS deve ser adicionada aqui para a segurança
         return atletaService.deleteById(id);
     }
 }
