@@ -5,6 +5,7 @@ import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
 import br.com.acervodaatletabrasileira.acervoapi.model.FotoAcervo;
 import br.com.acervodaatletabrasileira.acervoapi.service.AtletaService;
 import br.com.acervodaatletabrasileira.acervoapi.service.CloudStorageService;
+import com.fasterxml.jackson.core.JsonProcessingException; // NOVO IMPORT
 import com.fasterxml.jackson.databind.ObjectMapper; // NOVO IMPORT
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -15,7 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.multipart.FilePart;
-import org.springframework.http.codec.multipart.Part;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/atletas")
@@ -34,7 +33,7 @@ public class AtletaController {
     @Autowired
     private AtletaService atletaService;
 
-    // NOVO: ObjectMapper para converter a String JSON em DTO
+    // NOVO: Injeção do ObjectMapper (Fornecido automaticamente pelo Spring Boot)
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -44,8 +43,7 @@ public class AtletaController {
         this.storageService = storageService;
     }
 
-    // --- READ: Listar e Buscar (Não Alterado) ---
-    // ... (Métodos getAllAtletas e getAtletaById permanecem inalterados) ...
+    // --- READ: Listar e Buscar ---
     @Operation(summary = "Lista todas as atletas cadastradas")
     @GetMapping
     public Flux<Atleta> getAllAtletas() {
@@ -74,13 +72,19 @@ public class AtletaController {
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Atleta> createAtleta(
             @RequestPart("file") FilePart filePart,
-            // CORREÇÃO: Recebe como String e desserializa manualmente
-            @RequestPart("dados") String dadosJson) throws IOException {
+            // CORRIGIDO: Recebe como String
+            @RequestPart("dados") String dadosJson) {
 
-        // 1. DESSERIALIZAÇÃO MANUAL: Converte a String JSON em DTO
-        AtletaFormDTO dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
+        AtletaFormDTO dto;
+        try {
+            // DESSERIALIZAÇÃO MANUAL: Converte a String JSON em DTO
+            dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
+        } catch (JsonProcessingException e) {
+            // Em caso de falha na desserialização do JSON
+            return Mono.error(new IllegalArgumentException("Formato de dados 'dados' inválido. Deve ser JSON.", e));
+        }
 
-        // 2. Faz o upload da imagem e obtém a URL (em Mono, para ser reativo)
+        // 1. Faz o upload da imagem e obtém a URL (em Mono, para ser reativo)
         Mono<String> imageUrlMono = Mono.fromCallable(() -> {
             try {
                 return storageService.uploadFile(filePart);
@@ -89,7 +93,7 @@ public class AtletaController {
             }
         });
 
-        // 3. Encadear a operação: upload -> montar modelo -> salvar no Firestore
+        // 2. Encadear a operação: upload -> montar modelo -> salvar no Firestore
         return imageUrlMono
                 .map(imageUrl -> {
                     // Monta o objeto FotoAcervo
@@ -123,16 +127,22 @@ public class AtletaController {
     public Mono<ResponseEntity<Atleta>> updateAtleta(
             @PathVariable("id") String id,
             @RequestPart(value = "file", required = false) Mono<FilePart> filePartMono,
-            // CORREÇÃO: Recebe como String e desserializa manualmente
-            @RequestPart("dados") String dadosJson) throws IOException {
+            // CORRIGIDO: Recebe como String
+            @RequestPart("dados") String dadosJson) {
 
-        // 1. DESSERIALIZAÇÃO MANUAL: Converte a String JSON em DTO
-        AtletaFormDTO dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
+        AtletaFormDTO dto;
+        try {
+            // DESSERIALIZAÇÃO MANUAL: Converte a String JSON em DTO
+            dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
+        } catch (JsonProcessingException e) {
+            // Em caso de falha na desserialização do JSON
+            return Mono.error(new IllegalArgumentException("Formato de dados 'dados' inválido. Deve ser JSON.", e));
+        }
 
-        // 2. Buscar a atleta existente
+        // 1. Buscar a atleta existente
         return atletaService.findById(id)
                 .flatMap(atletaExistente -> {
-                    // 3. Processar o upload (opcional)
+                    // 2. Processar o upload (opcional)
                     Mono<String> newImageUrlMono = filePartMono
                             .flatMap(filePart -> {
                                 return Mono.fromCallable(() -> {
@@ -149,7 +159,7 @@ public class AtletaController {
                                             atletaExistente.getFotos().get(0).getUrl() : null
                             );
 
-                    // 4. Encadear: obter URL -> atualizar metadados -> salvar
+                    // 3. Encadear: obter URL -> atualizar metadados -> salvar
                     return newImageUrlMono.flatMap(finalImageUrl -> {
                         // Copiar metadados do DTO
                         atletaExistente.setNome(dto.nome());
@@ -157,7 +167,7 @@ public class AtletaController {
                         atletaExistente.setBiografia(dto.biografia());
                         atletaExistente.setCompeticao(dto.competicao());
 
-                        // 5. Atualizar a lista de fotos (lógica de anexo permanece)
+                        // 4. Atualizar a lista de fotos (lógica de anexo permanece)
                         List<FotoAcervo> fotos = Optional.ofNullable(atletaExistente.getFotos()).orElseGet(ArrayList::new);
 
                         if (finalImageUrl != null && !finalImageUrl.isEmpty()) {
