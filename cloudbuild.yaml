@@ -1,10 +1,14 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+  logsBucket: 'gs://${PROJECT_ID}_cloudbuild'
+
 steps:
-  # 1. Empacotar o Spring Boot em um JAR (Executado na RAIZ)
+  # 1. Empacotar o Spring Boot em um JAR
   - name: 'maven:3.8.3-jdk-17'
     entrypoint: 'mvn'
     args: ['clean', 'package', '-DskipTests']
 
-  # 2. Construir a Imagem do Docker (Contexto: RAIZ)
+  # 2. Construir a Imagem do Docker
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
@@ -17,19 +21,19 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA']
 
-  # 4. Implantar a nova Imagem no Cloud Run (ATUALIZADO)
+  # 4. Implantar a nova Imagem no Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
     args: [
       'run',
       'deploy',
-      'acervo-api',                    # NOME DO SERVIÇO
+      'acervo-api',
       '--image',
       'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA',
       '--region',
       'southamerica-east1',
       '--platform',
       'managed',
-      '--allow-unauthenticated'        # MOVI PARA O FINAL
+      '--allow-unauthenticated'
     ]
 
 images:
