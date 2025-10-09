@@ -2,7 +2,7 @@ package br.com.acervodaatletabrasileira.acervoapi.controller;
 
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaFormDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
-import br.com.acervodaatletabrasileira.acervoapi.dto.FotoAcervo;
+import br.com.acervodaatletabrasileira.acervoapi.model.FotoAcervo;
 import br.com.acervodaatletabrasileira.acervoapi.service.AtletaService;
 import br.com.acervodaatletabrasileira.acervoapi.service.CloudStorageService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -24,7 +24,6 @@ import reactor.core.scheduler.Schedulers;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/atletas")
@@ -98,9 +97,8 @@ public class AtletaController {
                     fotos.add(novaFoto);
                     novaAtleta.setFotos(fotos);
 
-                    // ✅ CORREÇÃO: GERA O ID ANTES DE SALVAR
-                    novaAtleta.setId(UUID.randomUUID().toString());
-                    System.out.println("🔑 ID gerado para nova atleta: " + novaAtleta.getId());
+                    // 🚨 REMOVIDO: geração manual do ID
+                    // O Firestore vai gerar o ID automaticamente!
 
                     return novaAtleta;
                 })
@@ -135,11 +133,10 @@ public class AtletaController {
                                     storageService.uploadFile(filePart)
                                             .subscribeOn(Schedulers.boundedElastic())
                             )
-                            // 🔧 CORREÇÃO AQUI: substitui defaultIfEmpty(null)
                             .switchIfEmpty(Mono.justOrEmpty(
                                     Optional.ofNullable(atletaExistente.getFotos())
                                             .filter(f -> !f.isEmpty())
-                                            .map(f -> f.get(0).url())
+                                            .map(f -> f.get(0).getUrl())
                             ));
 
                     return newImageUrlMono.flatMap(finalImageUrl -> {

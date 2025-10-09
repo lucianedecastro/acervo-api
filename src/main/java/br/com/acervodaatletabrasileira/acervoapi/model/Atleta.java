@@ -1,8 +1,7 @@
 package br.com.acervodaatletabrasileira.acervoapi.model;
 
-import br.com.acervodaatletabrasileira.acervoapi.dto.FotoAcervo;
+import br.com.acervodaatletabrasileira.acervoapi.model.FotoAcervo;
 import com.google.cloud.spring.data.firestore.Document;
-import com.google.cloud.firestore.annotation.DocumentId; // ✅ AGORA SIM!
 import lombok.Data;
 
 import java.util.List;
@@ -11,8 +10,8 @@ import java.util.List;
 @Document(collectionName = "atletas")
 public class Atleta {
 
-    @DocumentId  // ✅ COM O IMPORT CORRETO!
-    private String id;
+    // 🚨 REMOVE o campo id - Firestore vai gerar automaticamente!
+    // private String id; ← EXCLUÍDO
 
     private String nome;
     private String modalidade;
