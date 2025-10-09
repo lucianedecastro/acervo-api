@@ -1,6 +1,6 @@
 options:
   logging: CLOUD_LOGGING_ONLY
-  logsBucket: 'gs://${PROJECT_ID}_cloudbuild'
+  logBucket: 'gs://${PROJECT_ID}_cloudbuild'
 
 steps:
   # 1. Empacotar o Spring Boot em um JAR
