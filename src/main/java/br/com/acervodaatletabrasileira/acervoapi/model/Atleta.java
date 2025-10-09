@@ -2,14 +2,14 @@ package br.com.acervodaatletabrasileira.acervoapi.model;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.FotoAcervo;
 import com.google.cloud.spring.data.firestore.Document;
-import org.springframework.data.annotation.Id; // ✅ SPRING ID
 import lombok.Data;
+
 import java.util.List;
 
 @Data
 @Document(collectionName = "atletas")
 public class Atleta {
-    @Id // ✅ AGORA É @Id DO SPRING
+    // 🎯 SEM ANOTAÇÕES MÁGICAS - O FirestoreDirectService cuida do ID!
     private String id;
 
     private String nome;
@@ -17,4 +17,6 @@ public class Atleta {
     private String biografia;
     private String competicao;
     private List<FotoAcervo> fotos;
+
+    // O FirestoreDirectService vai gerar o ID automaticamente!
 }

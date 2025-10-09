@@ -11,22 +11,27 @@ import reactor.core.publisher.Mono;
 public class AtletaService {
 
     @Autowired
-    private AtletaRepository atletaRepository;
+    private AtletaRepository atletaRepository;      // ⛽ GASOLINA
 
+    @Autowired
+    private FirestoreDirectService directService;   // 🌽 ÁLCOOL
+
+    // 🌽 ÁLCOOL - SALVAR (O PROBLEMÁTICO)
+    public Mono<Atleta> save(Atleta atleta) {
+        return directService.saveAtleta(atleta);
+    }
+
+    // ⛽ GASOLINA - BUSCAR TODOS
     public Flux<Atleta> findAll() {
         return atletaRepository.findAll();
     }
 
+    // ⛽ GASOLINA - BUSCAR POR ID
     public Mono<Atleta> findById(String id) {
         return atletaRepository.findById(id);
     }
 
-    public Mono<Atleta> save(Atleta atleta) {
-        // Futuramente, aqui entrará a lógica de auditoria (RF08, RN03)
-        return atletaRepository.save(atleta);
-    }
-
-    // --- MÉTODO UPDATE REFORÇADO ---
+    // 🌽/⛽ HÍBRIDO - ATUALIZAR
     public Mono<Atleta> update(String id, Atleta atleta) {
         return atletaRepository.findById(id)
                 .flatMap(existingAtleta -> {
@@ -49,15 +54,14 @@ public class AtletaService {
                         existingAtleta.setFotos(atleta.getFotos());
                     }
 
-                    return atletaRepository.save(existingAtleta);
+                    // 🌽 USA ÁLCOOL PRA SALVAR A ATUALIZAÇÃO
+                    return directService.saveAtleta(existingAtleta);
                 })
-                // Caso o atleta não exista, lança erro específico
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrado para atualização: " + id)));
     }
-    // --- FIM DO MÉTODO UPDATE REFORÇADO ---
 
+    // ⛽ GASOLINA - DELETAR
     public Mono<Void> deleteById(String id) {
-        // Futuramente, aqui também entrará a lógica de auditoria
         return atletaRepository.deleteById(id);
     }
 }

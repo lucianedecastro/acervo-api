@@ -15,5 +15,6 @@ br\com\acervodaatletabrasileira\acervoapi\service\UsuarioAdminService.class
 br\com\acervodaatletabrasileira\acervoapi\model\Atleta.class
 br\com\acervodaatletabrasileira\acervoapi\model\UsuarioAdmin.class
 br\com\acervodaatletabrasileira\acervoapi\service\AtletaService.class
+br\com\acervodaatletabrasileira\acervoapi\service\FirestoreDirectService.class
 br\com\acervodaatletabrasileira\acervoapi\controller\AuthController.class
 br\com\acervodaatletabrasileira\acervoapi\service\JwtService.class
