@@ -2,7 +2,7 @@ package br.com.acervodaatletabrasileira.acervoapi.model;
 
 import br.com.acervodaatletabrasileira.acervoapi.dto.FotoAcervo;
 import com.google.cloud.spring.data.firestore.Document;
-import org.springframework.data.annotation.Id;  // <-- substitui o import do DocumentId
+import com.google.cloud.firestore.annotation.DocumentId; // ✅ AGORA SIM!
 import lombok.Data;
 
 import java.util.List;
@@ -11,7 +11,7 @@ import java.util.List;
 @Document(collectionName = "atletas")
 public class Atleta {
 
-    @Id  // <-- troque de @DocumentId para @Id
+    @DocumentId  // ✅ COM O IMPORT CORRETO!
     private String id;
 
     private String nome;
