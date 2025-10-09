@@ -1,7 +1,3 @@
-options:
-  logging: CLOUD_LOGGING_ONLY
-  logBucket: 'gs://${PROJECT_ID}_cloudbuild'
-
 steps:
   # 1. Empacotar o Spring Boot em um JAR
   - name: 'maven:3.8.3-jdk-17'
