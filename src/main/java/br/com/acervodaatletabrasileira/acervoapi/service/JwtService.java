@@ -1,4 +1,3 @@
-// src/main/java/br/com/acervodaatletabrasileira.acervoapi.service/JwtService.java
 package br.com.acervodaatletabrasileira.acervoapi.service;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.UsuarioAdmin;
@@ -19,20 +18,18 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    // CORREÇÃO: Adiciona um valor padrão (fallback) para evitar falha de inicialização (UnsatisfiedDependencyException).
     @Value("${jwt.secret:defaultFakeKey}")
     private String secret;
 
-    // CORREÇÃO: Adiciona um valor padrão (fallback) de 24 horas (86400 segundos).
     @Value("${jwt.expiration:86400}")
     private Long expiration;
 
-    // Métodos antigos
+    // ✅ CORREÇÃO: Usa getEmail() em vez de getUsername()
     public String generateToken(UsuarioAdmin usuario) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("nome", usuario.getNome());
-        // Note: O username é o email, que é o Subject (assunto) do token.
-        return createToken(claims, usuario.getUsername());
+        claims.put("role", usuario.getRole()); // ✅ Adiciona o role como claim
+        // ✅ CORREÇÃO: Usa getEmail() como subject
+        return createToken(claims, usuario.getEmail());
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
@@ -40,12 +37,12 @@ public class JwtService {
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration * 1000L)) // Converte segundos para milissegundos
+                .setExpiration(new Date(System.currentTimeMillis() + expiration * 1000L))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // Métodos novos para validação
+    // Métodos de validação (mantidos)
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
@@ -60,7 +57,6 @@ public class JwtService {
     }
 
     private Claims extractAllClaims(String token) {
-        // Usa o secret para validar o token.
         return Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody();
     }
 
@@ -74,7 +70,6 @@ public class JwtService {
     }
 
     private Key getSigningKey() {
-        // Converte a string secret para um array de bytes para gerar a chave de criptografia.
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 }

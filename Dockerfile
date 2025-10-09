@@ -2,39 +2,32 @@
 # 🏗️ Estágio 1: Build da Aplicação
 # ---------------------------
 FROM maven:3.8.8-eclipse-temurin-17 AS build
-
-# Define o diretório de trabalho dentro do container
 WORKDIR /app
 
-# Copia o arquivo pom.xml e baixa as dependências primeiro (cache inteligente)
+# Copia o pom.xml e baixa dependências (cache inteligente)
 COPY pom.xml .
-
-# Baixa dependências antes de copiar o código (melhora cache entre builds)
 RUN mvn dependency:go-offline -B
 
-# Copia o código-fonte para dentro do container
+# Copia o código e gera o JAR
 COPY src ./src
-
-# Compila o projeto e gera o JAR
 RUN mvn clean package -DskipTests -DcompilerArgs=-parameters
-
 
 # ---------------------------
 # 🚀 Estágio 2: Imagem de Execução (Leve)
 # ---------------------------
 FROM eclipse-temurin:17-jre-jammy
-
-# Define o diretório de trabalho
 WORKDIR /app
 
-# Copia o JAR gerado do estágio anterior
+LABEL maintainer="Luciane de Castro <email@dominio.com>" \
+      project="acervo-carmen-lydia" \
+      description="API Java com Spring Boot e Firestore"
+
+# Copia o artefato final
 COPY --from=build /app/target/*.jar app.jar
 
-# Expõe a porta da aplicação (Cloud Run usa variável PORT, mas 8080 é padrão local)
+# Expondo porta padrão
 EXPOSE 8080
-
-# Usa variável de ambiente do Cloud Run (fallback 8080)
 ENV PORT=8080
 
-# Inicia a aplicação
+# Inicializa o app
 ENTRYPOINT ["java", "-jar", "app.jar"]

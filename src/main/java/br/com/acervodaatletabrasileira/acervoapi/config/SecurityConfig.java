@@ -1,6 +1,5 @@
 package br.com.acervodaatletabrasileira.acervoapi.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -20,13 +19,17 @@ import java.util.List;
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
-    @Autowired
-    private JwtAuthFilter jwtAuthFilter;
+    private final JwtAuthFilter jwtAuthFilter;
+
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
 
     // Rotas públicas do Swagger
     private static final String[] SWAGGER_WHITELIST = {
             "/v3/api-docs/**",
             "/swagger-ui.html",
+            "/swagger-ui/**",
             "/webjars/swagger-ui/**"
     };
 
@@ -37,16 +40,19 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
-                .authorizeExchange(exchange -> exchange
+                .authorizeExchange(exchanges -> exchanges
+                        // Rotas públicas
                         .pathMatchers("/").permitAll()
                         .pathMatchers(SWAGGER_WHITELIST).permitAll()
-
-                        // --- ROTA TEMPORÁRIA REMOVIDA DAQUI ---
-
+                        .pathMatchers(HttpMethod.POST, "/admin/register_temp").permitAll()
                         .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
-                        .pathMatchers(HttpMethod.GET, "/atletas").permitAll()
                         .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
-                        .anyExchange().authenticated() // TUDO MAIS EXIGE AUTENTICAÇÃO
+                        .pathMatchers("/actuator/health").permitAll()
+
+                        // Rotas admin protegidas
+                        .pathMatchers("/admin/**").authenticated()
+                        // Tudo mais exige autenticação
+                        .anyExchange().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION);
 
@@ -55,20 +61,20 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of(
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
                 "https://acervo-front-one.vercel.app",
                 "https://www.acervodaatletabrasileira.com.br",
-                "https://acervodaatletabrasileira.com.br",
-                "http://localhost:3000",
-                "http://127.0.0.1:3000"
+                "https://acervodaatletabrasileira.com.br"
         ));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 

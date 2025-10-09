@@ -19,9 +19,8 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers; // <--- IMPORT CRÍTICO PARA AGENDAMENTO
+import reactor.core.scheduler.Schedulers;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -43,7 +42,7 @@ public class AtletaController {
         this.storageService = storageService;
     }
 
-    // --- READ: Listar e Buscar (Não Alterado) ---
+    // --- READ: Listar e Buscar ---
     @Operation(summary = "Lista todas as atletas cadastradas")
     @GetMapping
     public Flux<Atleta> getAllAtletas() {
@@ -62,7 +61,7 @@ public class AtletaController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // --- CREATE: Adiciona uma nova atleta (COM CORREÇÃO DE THREAD) ---
+    // --- CREATE: Adiciona uma nova atleta ---
     @Operation(summary = "Adiciona uma nova atleta (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Atleta criada com sucesso"),
@@ -81,26 +80,19 @@ public class AtletaController {
             return Mono.error(new IllegalArgumentException("Formato de dados 'dados' inválido. Deve ser JSON.", e));
         }
 
-        // 1. Faz o upload da imagem e obtém a URL (com agendamento)
-        // MUDANÇA CRÍTICA: Chama o serviço (que retorna um Mono) e agenda o bloqueio
         Mono<String> imageUrlMono = storageService.uploadFile(filePart)
-                // CORREÇÃO: Move a operação bloqueante para um thread de I/O separado
                 .subscribeOn(Schedulers.boundedElastic());
 
-        // 2. Encadear a operação: upload -> montar modelo -> salvar no Firestore
         return imageUrlMono
                 .map(imageUrl -> {
-                    // Monta o objeto FotoAcervo (Construtor de Record é OK)
                     FotoAcervo novaFoto = new FotoAcervo(imageUrl, dto.legenda());
 
-                    // Monta o objeto Atleta
                     Atleta novaAtleta = new Atleta();
                     novaAtleta.setNome(dto.nome());
                     novaAtleta.setModalidade(dto.modalidade());
                     novaAtleta.setBiografia(dto.biografia());
                     novaAtleta.setCompeticao(dto.competicao());
 
-                    // Adiciona a nova foto à galeria
                     List<FotoAcervo> fotos = new ArrayList<>();
                     fotos.add(novaFoto);
                     novaAtleta.setFotos(fotos);
@@ -110,7 +102,7 @@ public class AtletaController {
                 .flatMap(atletaService::save);
     }
 
-    // --- UPDATE: Atualiza informações de uma atleta (COM CORREÇÃO DE THREAD) ---
+    // --- UPDATE: Atualiza informações de uma atleta ---
     @Operation(summary = "Atualiza informações de uma atleta (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Atleta atualizada com sucesso"),
@@ -130,38 +122,36 @@ public class AtletaController {
             return Mono.error(new IllegalArgumentException("Formato de dados 'dados' inválido. Deve ser JSON.", e));
         }
 
-        // 1. Buscar a atleta existente
         return atletaService.findById(id)
                 .flatMap(atletaExistente -> {
-                    // 2. Processar o upload (opcional)
+                    // Upload opcional da nova imagem
                     Mono<String> newImageUrlMono = filePartMono
                             .flatMap(filePart ->
-                                    // Chama o serviço (que retorna Mono) e agenda o bloqueio
                                     storageService.uploadFile(filePart)
-                                            .subscribeOn(Schedulers.boundedElastic()) // CORREÇÃO: Agendamento do bloqueio
+                                            .subscribeOn(Schedulers.boundedElastic())
                             )
-                            // Se nenhum arquivo for enviado, usa a URL existente da primeira foto
-                            .defaultIfEmpty(
-                                    atletaExistente.getFotos() != null && !atletaExistente.getFotos().isEmpty() ?
-                                            atletaExistente.getFotos().get(0).url() : null
-                            );
+                            // 🔧 CORREÇÃO AQUI: substitui defaultIfEmpty(null)
+                            .switchIfEmpty(Mono.justOrEmpty(
+                                    Optional.ofNullable(atletaExistente.getFotos())
+                                            .filter(f -> !f.isEmpty())
+                                            .map(f -> f.get(0).url())
+                            ));
 
-                    // 3. Encadear: obter URL -> atualizar metadados -> salvar
                     return newImageUrlMono.flatMap(finalImageUrl -> {
-                        // Copiar metadados do DTO
+                        // Atualiza os campos básicos
                         atletaExistente.setNome(dto.nome());
                         atletaExistente.setModalidade(dto.modalidade());
                         atletaExistente.setBiografia(dto.biografia());
                         atletaExistente.setCompeticao(dto.competicao());
 
-                        // 4. Atualizar a lista de fotos
+                        // Atualiza as fotos
                         List<FotoAcervo> fotos = Optional.ofNullable(atletaExistente.getFotos()).orElseGet(ArrayList::new);
 
-                        // Somente adiciona a nova foto se o upload foi feito
                         if (finalImageUrl != null && finalImageUrl.contains("storage.googleapis.com")) {
                             FotoAcervo novaFoto = new FotoAcervo(finalImageUrl, dto.legenda());
                             fotos.add(novaFoto);
                         }
+
                         atletaExistente.setFotos(fotos);
 
                         return atletaService.update(id, atletaExistente)
@@ -171,7 +161,7 @@ public class AtletaController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // --- DELETE: Remove uma atleta do banco de dados (Não Alterado) ---
+    // --- DELETE: Remove uma atleta ---
     @Operation(summary = "Remove uma atleta do banco de dados (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Atleta deletada com sucesso"),

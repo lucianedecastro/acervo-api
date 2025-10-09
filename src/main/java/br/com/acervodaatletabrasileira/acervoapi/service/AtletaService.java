@@ -1,5 +1,3 @@
-// src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/AtletaService.java
-
 package br.com.acervodaatletabrasileira.acervoapi.service;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
@@ -28,27 +26,35 @@ public class AtletaService {
         return atletaRepository.save(atleta);
     }
 
-    // --- MÉTODO UPDATE CORRIGIDO ---
+    // --- MÉTODO UPDATE REFORÇADO ---
     public Mono<Atleta> update(String id, Atleta atleta) {
         return atletaRepository.findById(id)
                 .flatMap(existingAtleta -> {
-                    // Atualiza campos de texto
-                    existingAtleta.setNome(atleta.getNome());
-                    existingAtleta.setBiografia(atleta.getBiografia());
-                    existingAtleta.setModalidade(atleta.getModalidade());
-                    existingAtleta.setCompeticao(atleta.getCompeticao());
+                    // Atualiza apenas se o campo novo não for nulo
+                    if (atleta.getNome() != null) {
+                        existingAtleta.setNome(atleta.getNome());
+                    }
+                    if (atleta.getBiografia() != null) {
+                        existingAtleta.setBiografia(atleta.getBiografia());
+                    }
+                    if (atleta.getModalidade() != null) {
+                        existingAtleta.setModalidade(atleta.getModalidade());
+                    }
+                    if (atleta.getCompeticao() != null) {
+                        existingAtleta.setCompeticao(atleta.getCompeticao());
+                    }
 
-                    // ATUALIZAÇÃO DA GALERIA:
-                    // Copia toda a nova lista de fotos (se existir)
-                    // Nota: O AtletaController deve garantir que esta lista seja atualizada antes de chamar este Service
-                    if (atleta.getFotos() != null) {
+                    // Atualiza galeria se vier algo novo
+                    if (atleta.getFotos() != null && !atleta.getFotos().isEmpty()) {
                         existingAtleta.setFotos(atleta.getFotos());
                     }
 
                     return atletaRepository.save(existingAtleta);
-                });
+                })
+                // Caso o atleta não exista, lança erro específico
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrado para atualização: " + id)));
     }
-    // --- FIM DO MÉTODO UPDATE CORRIGIDO ---
+    // --- FIM DO MÉTODO UPDATE REFORÇADO ---
 
     public Mono<Void> deleteById(String id) {
         // Futuramente, aqui também entrará a lógica de auditoria

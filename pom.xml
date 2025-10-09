@@ -22,10 +22,8 @@
 		<spring-cloud.version>2023.0.1</spring-cloud.version>
 		<spring-cloud-gcp.version>5.2.1</spring-cloud-gcp.version>
 		<lombok.version>1.18.32</lombok.version>
-		<google.build.args>--batch-mode clean package -DskipTests</google.build.args>
 	</properties>
 
-	<!-- Gerenciamento de versões -->
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -35,7 +33,6 @@
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
-
 			<dependency>
 				<groupId>com.google.cloud</groupId>
 				<artifactId>spring-cloud-gcp-dependencies</artifactId>
@@ -46,9 +43,8 @@
 		</dependencies>
 	</dependencyManagement>
 
-	<!-- Dependências principais -->
 	<dependencies>
-		<!-- WebFlux (reativo) -->
+		<!-- WebFlux -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
@@ -60,10 +56,11 @@
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 
-		<!-- Firestore -->
+		<!-- Firestore reativo -->
 		<dependency>
 			<groupId>com.google.cloud</groupId>
 			<artifactId>spring-cloud-gcp-starter-data-firestore</artifactId>
+			<version>5.3.0</version>
 		</dependency>
 
 		<!-- Google Cloud Storage -->
@@ -72,7 +69,7 @@
 			<artifactId>spring-cloud-gcp-starter-storage</artifactId>
 		</dependency>
 
-		<!-- JWT (Json Web Token) -->
+		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
@@ -99,7 +96,7 @@
 			<optional>true</optional>
 		</dependency>
 
-		<!-- OpenAPI (Swagger UI para WebFlux) -->
+		<!-- OpenAPI / Swagger -->
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
@@ -114,7 +111,6 @@
 		</dependency>
 	</dependencies>
 
-	<!-- Plugins de build -->
 	<build>
 		<plugins>
 			<plugin>

@@ -2,7 +2,6 @@ steps:
   # 1. Empacotar o Spring Boot em um JAR (Executado na RAIZ)
   - name: 'maven:3.8.3-jdk-17'
     entrypoint: 'mvn'
-    # A instrução 'dir' é removida, pois o pom.xml está na raiz
     args: ['clean', 'package', '-DskipTests']
 
   # 2. Construir a Imagem do Docker (Contexto: RAIZ)
@@ -11,26 +10,27 @@ steps:
       'build',
       '-t',
       'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA',
-      '.'  # O ponto significa: "O Dockerfile e o código estão na pasta atual (RAIZ)"
+      '.'
     ]
 
   # 3. Enviar a Imagem para o Google Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA']
 
-  # 4. Implantar a nova Imagem no Cloud Run (Mantenha as configs de deploy)
+  # 4. Implantar a nova Imagem no Cloud Run (ATUALIZADO)
   - name: 'gcr.io/cloud-builders/gcloud'
     args: [
       'run',
       'deploy',
-      'acervo-api',
+      'acervo-api',                    # NOME DO SERVIÇO
       '--image',
       'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA',
       '--region',
       'southamerica-east1',
-      '--allow-unauthenticated',
       '--platform',
-      'managed'
+      'managed',
+      '--allow-unauthenticated'        # MOVI PARA O FINAL
     ]
+
 images:
   - 'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA'

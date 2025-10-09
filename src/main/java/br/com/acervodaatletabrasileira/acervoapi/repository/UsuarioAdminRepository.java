@@ -1,15 +1,11 @@
 package br.com.acervodaatletabrasileira.acervoapi.repository;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.UsuarioAdmin;
-import com.google.cloud.spring.data.firestore.FirestoreReactiveRepository;
+import com.google.cloud.spring.data.firestore.FirestoreReactiveRepository; // CORRIGIDO!
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 
 @Repository
 public interface UsuarioAdminRepository extends FirestoreReactiveRepository<UsuarioAdmin> {
-    // CORREÇÃO: Removido o <UsuarioAdmin, String> para <UsuarioAdmin>
-    // A sua versão do Spring Data Firestore deve inferir o tipo de ID.
-
-    // Método customizado para buscar um usuário pelo seu email
     Mono<UsuarioAdmin> findByEmail(String email);
 }

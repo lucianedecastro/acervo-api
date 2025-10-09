@@ -1,10 +1,10 @@
 br\com\acervodaatletabrasileira\acervoapi\config\SecurityConfig.class
 br\com\acervodaatletabrasileira\acervoapi\dto\FotoAcervo.class
-br\com\acervodaatletabrasileira\acervoapi\model\UsuarioAdmin$UsuarioAdminBuilder.class
 br\com\acervodaatletabrasileira\acervoapi\config\JwtAuthFilter.class
 br\com\acervodaatletabrasileira\acervoapi\service\CloudStorageService.class
 br\com\acervodaatletabrasileira\acervoapi\dto\AuthRequest.class
 br\com\acervodaatletabrasileira\acervoapi\service\UserDetailsServiceImpl.class
+br\com\acervodaatletabrasileira\acervoapi\config\FirestoreCheck.class
 br\com\acervodaatletabrasileira\acervoapi\service\AuthService.class
 br\com\acervodaatletabrasileira\acervoapi\dto\AtletaFormDTO.class
 br\com\acervodaatletabrasileira\acervoapi\controller\AtletaController.class
