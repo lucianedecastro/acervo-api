@@ -24,6 +24,7 @@ import reactor.core.scheduler.Schedulers;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/atletas")
@@ -96,6 +97,10 @@ public class AtletaController {
                     List<FotoAcervo> fotos = new ArrayList<>();
                     fotos.add(novaFoto);
                     novaAtleta.setFotos(fotos);
+
+                    // ✅ CORREÇÃO: GERA O ID ANTES DE SALVAR
+                    novaAtleta.setId(UUID.randomUUID().toString());
+                    System.out.println("🔑 ID gerado para nova atleta: " + novaAtleta.getId());
 
                     return novaAtleta;
                 })
