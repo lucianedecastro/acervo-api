@@ -97,9 +97,7 @@ public class AtletaController {
                     fotos.add(novaFoto);
                     novaAtleta.setFotos(fotos);
 
-                    // 🚨 REMOVIDO: geração manual do ID
-                    // O Firestore vai gerar o ID automaticamente!
-
+                    // ✅ IMPORTANTE: SEM setId() - Firestore gera automaticamente!
                     return novaAtleta;
                 })
                 .flatMap(atletaService::save);
