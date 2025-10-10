@@ -6,7 +6,6 @@ import com.google.cloud.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -59,21 +58,20 @@ public class CloudStorageService {
 
                     String fileName = "atletas_imagens/" + UUID.randomUUID() + extension;
 
-                    String contentType = Optional.ofNullable(filePart.headers().getContentType())
-                            .map(MediaType::toString)
-                            .orElse("application/octet-stream");
+                    // 🎯 CORREÇÃO DEFINITIVA: EVITA COMPLETAMENTE OS HEADERS
+                    String contentType = getContentTypeFromFilename(originalFilename);
 
                     BlobId blobId = BlobId.of(bucketName, fileName);
                     BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
                             .setContentType(contentType)
                             .build();
 
-                    // ✅ CORREÇÃO: Processamento direto sem cadeia reativa complexa
+                    // Processamento direto sem cadeia reativa complexa
                     Path tempFile = Files.createTempFile("upload-", originalFilename);
 
                     try {
                         // Transferência síncrona do arquivo (em thread isolada)
-                        filePart.transferTo(tempFile).block(); // ✅ block() seguro em contexto isolado
+                        filePart.transferTo(tempFile).block();
 
                         // Upload para GCS
                         storage.createFrom(blobInfo, tempFile);
@@ -91,7 +89,20 @@ public class CloudStorageService {
                         }
                     }
                 })
-                .subscribeOn(Schedulers.boundedElastic()) // ✅ Executa em thread de I/O dedicada
+                .subscribeOn(Schedulers.boundedElastic())
                 .onErrorMap(e -> new IOException("Erro ao enviar arquivo para o bucket " + bucketName, e));
+    }
+
+    // 🎯 MÉTODO AUXILIAR: Determina content type pela extensão do arquivo
+    private String getContentTypeFromFilename(String filename) {
+        if (filename.toLowerCase().endsWith(".jpg") || filename.toLowerCase().endsWith(".jpeg")) {
+            return "image/jpeg";
+        } else if (filename.toLowerCase().endsWith(".png")) {
+            return "image/png";
+        } else if (filename.toLowerCase().endsWith(".gif")) {
+            return "image/gif";
+        } else {
+            return "application/octet-stream";
+        }
     }
 }
