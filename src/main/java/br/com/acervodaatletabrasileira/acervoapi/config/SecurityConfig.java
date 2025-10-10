@@ -1,5 +1,6 @@
 package br.com.acervodaatletabrasileira.acervoapi.config;
 
+import br.com.acervodaatletabrasileira.acervoapi.config.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -44,7 +45,6 @@ public class SecurityConfig {
                         // Rotas públicas
                         .pathMatchers("/").permitAll()
                         .pathMatchers(SWAGGER_WHITELIST).permitAll()
-                        .pathMatchers(HttpMethod.POST, "/admin/register_temp").permitAll()
                         .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
                         .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
                         .pathMatchers("/actuator/health").permitAll()
@@ -65,6 +65,8 @@ public class SecurityConfig {
         config.setAllowedOrigins(List.of(
                 "http://localhost:3000",
                 "http://127.0.0.1:3000",
+                "http://localhost:5173",        // 🆕 VITE DEV SERVER
+                "http://127.0.0.1:5173",       // 🆕 VITE ALTERNATIVO
                 "https://acervo-front-one.vercel.app",
                 "https://www.acervodaatletabrasileira.com.br",
                 "https://acervodaatletabrasileira.com.br"

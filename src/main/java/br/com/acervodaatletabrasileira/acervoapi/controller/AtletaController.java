@@ -85,7 +85,9 @@ public class AtletaController {
 
         return imageUrlMono
                 .map(imageUrl -> {
+                    // 🆕 FOTO COM CONTROLE DE DESTAQUE
                     FotoAcervo novaFoto = new FotoAcervo(imageUrl, dto.legenda());
+                    novaFoto.setEhDestaque(true); // 🎯 Primeira foto é sempre destaque
 
                     Atleta novaAtleta = new Atleta();
                     novaAtleta.setNome(dto.nome());
@@ -96,8 +98,8 @@ public class AtletaController {
                     List<FotoAcervo> fotos = new ArrayList<>();
                     fotos.add(novaFoto);
                     novaAtleta.setFotos(fotos);
+                    novaAtleta.setFotoDestaqueId(novaFoto.getId()); // 🎯 Define destaque
 
-                    // ✅ IMPORTANTE: SEM setId() - Firestore gera automaticamente!
                     return novaAtleta;
                 })
                 .flatMap(atletaService::save);
@@ -144,15 +146,23 @@ public class AtletaController {
                         atletaExistente.setBiografia(dto.biografia());
                         atletaExistente.setCompeticao(dto.competicao());
 
-                        // Atualiza as fotos
+                        // 🆕 ATUALIZAÇÃO INTELIGENTE DAS FOTOS
                         List<FotoAcervo> fotos = Optional.ofNullable(atletaExistente.getFotos()).orElseGet(ArrayList::new);
 
                         if (finalImageUrl != null && finalImageUrl.contains("storage.googleapis.com")) {
                             FotoAcervo novaFoto = new FotoAcervo(finalImageUrl, dto.legenda());
-                            fotos.add(novaFoto);
-                        }
 
-                        atletaExistente.setFotos(fotos);
+                            // 🎯 ESTRATÉGIA: Se não tem fotos, nova é destaque. Se já tem, é adicional.
+                            if (fotos.isEmpty()) {
+                                novaFoto.setEhDestaque(true);
+                                atletaExistente.setFotoDestaqueId(novaFoto.getId());
+                            } else {
+                                novaFoto.setEhDestaque(false);
+                            }
+
+                            fotos.add(novaFoto);
+                            atletaExistente.setFotos(fotos);
+                        }
 
                         return atletaService.update(id, atletaExistente)
                                 .map(ResponseEntity::ok);
