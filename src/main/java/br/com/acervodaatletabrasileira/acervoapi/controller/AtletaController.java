@@ -24,6 +24,7 @@ import reactor.core.scheduler.Schedulers;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/atletas")
@@ -123,7 +124,6 @@ public class AtletaController {
         try {
             dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
         } catch (JsonProcessingException e) {
-            // ✅ CORRIGIDO: Retorna ResponseEntity de erro em vez de Mono.error()
             return Mono.just(ResponseEntity.badRequest().build());
         }
 
@@ -148,22 +148,28 @@ public class AtletaController {
                         atletaExistente.setBiografia(dto.biografia());
                         atletaExistente.setCompeticao(dto.competicao());
 
-                        // 🆕 ATUALIZAÇÃO INTELIGENTE DAS FOTOS
-                        List<FotoAcervo> fotos = Optional.ofNullable(atletaExistente.getFotos()).orElseGet(ArrayList::new);
-
+                        // 🎯 CORREÇÃO INTELIGENTE: PRESERVA FOTOS VÁLIDAS, DESCARTA FANTASMAS
                         if (finalImageUrl != null && finalImageUrl.contains("storage.googleapis.com")) {
                             FotoAcervo novaFoto = new FotoAcervo(finalImageUrl, dto.legenda());
 
-                            // 🎯 ESTRATÉGIA: Se não tem fotos, nova é destaque. Se já tem, é adicional.
-                            if (fotos.isEmpty()) {
-                                novaFoto.setEhDestaque(true);
-                                atletaExistente.setFotoDestaqueId(novaFoto.getId());
-                            } else {
-                                novaFoto.setEhDestaque(false);
-                            }
+                            // 🎯 FILTRA APENAS FOTOS COM URL VÁLIDA DO BUCKET
+                            List<FotoAcervo> fotosValidas = Optional.ofNullable(atletaExistente.getFotos())
+                                    .orElseGet(ArrayList::new)
+                                    .stream()
+                                    .filter(foto -> foto.getUrl() != null && foto.getUrl().contains("storage.googleapis.com"))
+                                    .collect(Collectors.toList());
 
-                            fotos.add(novaFoto);
-                            atletaExistente.setFotos(fotos);
+                            // 🎯 ADICIONA NOVA FOTO À GALERIA VÁLIDA
+                            novaFoto.setEhDestaque(fotosValidas.isEmpty()); // Destaque se for a primeira
+                            fotosValidas.add(novaFoto);
+
+                            atletaExistente.setFotos(fotosValidas);
+
+                            // 🎯 ATUALIZA DESTAQUE: nova foto se for a primeira, senão mantém existente
+                            if (fotosValidas.size() == 1) {
+                                atletaExistente.setFotoDestaqueId(novaFoto.getId());
+                            }
+                            // Se já tinha fotos, mantém o fotoDestaqueId anterior
                         }
 
                         return atletaService.update(id, atletaExistente)
