@@ -6,18 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="f0b245dc-5670-4984-a57b-af6a8bf547d1" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/config/SecurityConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/controller/AtletaController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/controller/AtletaController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/model/Atleta.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/model/Atleta.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/model/FotoAcervo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/model/FotoAcervo.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/acervo-api-0.0.1-SNAPSHOT.jar" beforeDir="false" afterPath="$PROJECT_DIR$/target/acervo-api-0.0.1-SNAPSHOT.jar" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/acervo-api-0.0.1-SNAPSHOT.jar.original" beforeDir="false" afterPath="$PROJECT_DIR$/target/acervo-api-0.0.1-SNAPSHOT.jar.original" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/br/com/acervodaatletabrasileira/acervoapi/config/SecurityConfig.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/acervodaatletabrasileira/acervoapi/config/SecurityConfig.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/br/com/acervodaatletabrasileira/acervoapi/controller/AtletaController.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/acervodaatletabrasileira/acervoapi/controller/AtletaController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/br/com/acervodaatletabrasileira/acervoapi/model/Atleta.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/acervodaatletabrasileira/acervoapi/model/Atleta.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/br/com/acervodaatletabrasileira/acervoapi/model/FotoAcervo.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/br/com/acervodaatletabrasileira/acervoapi/model/FotoAcervo.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/surefire-reports/TEST-br.com.acervodaatletabrasileira.acervoapi.AcervoApiApplicationTests.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/surefire-reports/br.com.acervodaatletabrasileira.acervoapi.AcervoApiApplicationTests.txt" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

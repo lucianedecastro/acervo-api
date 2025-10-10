@@ -109,6 +109,7 @@ public class AtletaController {
     @Operation(summary = "Atualiza informações de uma atleta (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Atleta atualizada com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
             @ApiResponse(responseCode = "401", description = "Não autorizado"),
             @ApiResponse(responseCode = "404", description = "Atleta não encontrada")
     })
@@ -122,7 +123,8 @@ public class AtletaController {
         try {
             dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
         } catch (JsonProcessingException e) {
-            return Mono.error(new IllegalArgumentException("Formato de dados 'dados' inválido. Deve ser JSON.", e));
+            // ✅ CORRIGIDO: Retorna ResponseEntity de erro em vez de Mono.error()
+            return Mono.just(ResponseEntity.badRequest().build());
         }
 
         return atletaService.findById(id)
