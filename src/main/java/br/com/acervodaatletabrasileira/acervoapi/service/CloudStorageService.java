@@ -10,8 +10,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,50 +44,54 @@ public class CloudStorageService {
      * @return Mono<String> contendo a URL pública do arquivo enviado
      */
     public Mono<String> uploadFile(FilePart filePart) {
-        return Mono.defer(() -> {
-            // Validação defensiva
-            if (bucketName == null || bucketName.isBlank()) {
-                return Mono.error(new IllegalStateException(
-                        "Bucket name não configurado. Verifique a variável 'gcp.storage.bucket-name' no Cloud Run."
-                ));
-            }
+        return Mono.fromCallable(() -> {
+                    // Validação defensiva
+                    if (bucketName == null || bucketName.isBlank()) {
+                        throw new IllegalStateException(
+                                "Bucket name não configurado. Verifique a variável 'gcp.storage.bucket-name' no Cloud Run."
+                        );
+                    }
 
-            String originalFilename = Optional.ofNullable(filePart.filename()).orElse("sem_nome");
-            String extension = originalFilename.contains(".")
-                    ? originalFilename.substring(originalFilename.lastIndexOf("."))
-                    : "";
+                    String originalFilename = Optional.ofNullable(filePart.filename()).orElse("sem_nome");
+                    String extension = originalFilename.contains(".")
+                            ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                            : "";
 
-            String fileName = "atletas_imagens/" + UUID.randomUUID() + extension;
+                    String fileName = "atletas_imagens/" + UUID.randomUUID() + extension;
 
-            String contentType = Optional.ofNullable(filePart.headers().getContentType())
-                    .map(MediaType::toString)
-                    .orElse("application/octet-stream");
+                    String contentType = Optional.ofNullable(filePart.headers().getContentType())
+                            .map(MediaType::toString)
+                            .orElse("application/octet-stream");
 
-            BlobId blobId = BlobId.of(bucketName, fileName);
-            BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
-                    .setContentType(contentType)
-                    .build();
+                    BlobId blobId = BlobId.of(bucketName, fileName);
+                    BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
+                            .setContentType(contentType)
+                            .build();
 
-            // Cria arquivo temporário e faz upload de forma reativa
-            return Mono.fromCallable(() -> java.nio.file.Files.createTempFile("upload-", originalFilename))
-                    .flatMap(tempFile ->
-                            filePart.transferTo(tempFile)
-                                    .then(Mono.fromCallable(() -> {
-                                        storage.createFrom(blobInfo, tempFile);
-                                        logger.info("Upload concluído: {}", fileName);
-                                        return tempFile;
-                                    }))
-                                    .doFinally(signal -> {
-                                        try {
-                                            java.nio.file.Files.deleteIfExists(tempFile);
-                                            logger.debug("Arquivo temporário removido: {}", tempFile);
-                                        } catch (IOException ex) {
-                                            logger.warn("Falha ao excluir arquivo temporário: {}", tempFile);
-                                        }
-                                    })
-                    )
-                    .thenReturn(String.format("https://storage.googleapis.com/%s/%s", bucketName, fileName))
-                    .onErrorMap(e -> new IOException("Erro ao enviar arquivo para o bucket " + bucketName, e));
-        });
+                    // ✅ CORREÇÃO: Processamento direto sem cadeia reativa complexa
+                    Path tempFile = Files.createTempFile("upload-", originalFilename);
+
+                    try {
+                        // Transferência síncrona do arquivo (em thread isolada)
+                        filePart.transferTo(tempFile).block(); // ✅ block() seguro em contexto isolado
+
+                        // Upload para GCS
+                        storage.createFrom(blobInfo, tempFile);
+                        logger.info("Upload concluído: {}", fileName);
+
+                        return String.format("https://storage.googleapis.com/%s/%s", bucketName, fileName);
+
+                    } finally {
+                        // Limpeza garantida do arquivo temporário
+                        try {
+                            Files.deleteIfExists(tempFile);
+                            logger.debug("Arquivo temporário removido: {}", tempFile);
+                        } catch (IOException ex) {
+                            logger.warn("Falha ao excluir arquivo temporário: {}", tempFile);
+                        }
+                    }
+                })
+                .subscribeOn(Schedulers.boundedElastic()) // ✅ Executa em thread de I/O dedicada
+                .onErrorMap(e -> new IOException("Erro ao enviar arquivo para o bucket " + bucketName, e));
     }
 }
