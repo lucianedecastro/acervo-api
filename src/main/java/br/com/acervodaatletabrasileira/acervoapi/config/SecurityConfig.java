@@ -33,20 +33,19 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
-                        // Rotas públicas (apenas leitura)
-                        .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
+                        // Permite todas as requisições de pre-flight (OPTIONS) do CORS.
+
+                        .pathMatchers(HttpMethod.OPTIONS).permitAll()
+
+                        // Regras Públicas
                         .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
                         .pathMatchers(SWAGGER_WHITELIST).permitAll()
+                        .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
 
-                        // ✅ CORREÇÃO: Especifica que métodos de escrita e deleção em /atletas exigem autenticação.
-                        .pathMatchers(HttpMethod.POST, "/atletas/**").authenticated()
-                        .pathMatchers(HttpMethod.PUT, "/atletas/**").authenticated()
-                        .pathMatchers(HttpMethod.DELETE, "/atletas/**").authenticated()
-
-                        // Rotas admin genéricas
+                        // Regras Protegidas
+                        .pathMatchers("/atletas/**").authenticated()
                         .pathMatchers("/admin/**").authenticated()
 
-                        // Qualquer outra rota é negada por padrão (mais seguro)
                         .anyExchange().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION);
@@ -54,7 +53,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // O restante do arquivo (corsConfigurationSource, passwordEncoder) permanece o mesmo...
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
