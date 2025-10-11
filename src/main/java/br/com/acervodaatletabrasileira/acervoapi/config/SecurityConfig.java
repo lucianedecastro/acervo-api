@@ -33,14 +33,15 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
-                        // Rotas públicas
+                        // Rotas públicas (apenas leitura)
                         .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
                         .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
                         .pathMatchers(SWAGGER_WHITELIST).permitAll()
 
-                        // ✅ CORREÇÃO: Rotas de escrita/deleção de atletas agora exigem autenticação.
-                        // Isso protege POST, PUT e DELETE em /atletas.
-                        .pathMatchers("/atletas/**").authenticated()
+                        // ✅ CORREÇÃO: Especifica que métodos de escrita e deleção em /atletas exigem autenticação.
+                        .pathMatchers(HttpMethod.POST, "/atletas/**").authenticated()
+                        .pathMatchers(HttpMethod.PUT, "/atletas/**").authenticated()
+                        .pathMatchers(HttpMethod.DELETE, "/atletas/**").authenticated()
 
                         // Rotas admin genéricas
                         .pathMatchers("/admin/**").authenticated()
@@ -54,17 +55,10 @@ public class SecurityConfig {
     }
 
     // O restante do arquivo (corsConfigurationSource, passwordEncoder) permanece o mesmo...
-
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(
-                "http://localhost:3000", "http://127.0.0.1:3000",
-                "http://localhost:5173", "http://127.0.0.1:5173",
-                "https://acervo-front-one.vercel.app",
-                "https://www.acervodaatletabrasileira.com.br",
-                "https://acervodaatletabrasileira.com.br"
-        ));
+        config.setAllowedOrigins(List.of("http://localhost:5173", "https://acervo-front-one.vercel.app", "https://www.acervodaatletabrasileira.com.br"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

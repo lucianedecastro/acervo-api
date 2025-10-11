@@ -17,17 +17,12 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Serviço responsável por enviar arquivos ao Google Cloud Storage (GCS).
- * A operação de upload é executada em uma thread de I/O isolada,
- * garantindo compatibilidade com o modelo reativo (WebFlux).
- */
 @Service
 public class CloudStorageService {
 
     private static final Logger logger = LoggerFactory.getLogger(CloudStorageService.class);
 
-    @Value("${gcp.storage.bucket-name:}") // ✅ evita NPE se variável não estiver setada
+    @Value("${gcp.storage.bucket-name:}")
     private String bucketName;
 
     private final Storage storage;
@@ -36,54 +31,30 @@ public class CloudStorageService {
         this.storage = storage;
     }
 
-    /**
-     * Realiza o upload do arquivo para o bucket configurado no GCS.
-     *
-     * @param filePart arquivo recebido (via multipart)
-     * @return Mono<String> contendo a URL pública do arquivo enviado
-     */
     public Mono<String> uploadFile(FilePart filePart) {
         return Mono.fromCallable(() -> {
-                    // Validação defensiva
                     if (bucketName == null || bucketName.isBlank()) {
-                        throw new IllegalStateException(
-                                "Bucket name não configurado. Verifique a variável 'gcp.storage.bucket-name' no Cloud Run."
-                        );
+                        throw new IllegalStateException("Bucket name não configurado. Verifique a variável 'gcp.storage.bucket-name'.");
                     }
 
                     String originalFilename = Optional.ofNullable(filePart.filename()).orElse("sem_nome");
-                    String extension = originalFilename.contains(".")
-                            ? originalFilename.substring(originalFilename.lastIndexOf("."))
-                            : "";
-
+                    String extension = originalFilename.contains(".") ? originalFilename.substring(originalFilename.lastIndexOf(".")) : "";
                     String fileName = "atletas_imagens/" + UUID.randomUUID() + extension;
-
-                    // 🎯 CORREÇÃO DEFINITIVA: EVITA COMPLETAMENTE OS HEADERS
                     String contentType = getContentTypeFromFilename(originalFilename);
 
                     BlobId blobId = BlobId.of(bucketName, fileName);
-                    BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
-                            .setContentType(contentType)
-                            .build();
+                    BlobInfo blobInfo = BlobInfo.newBuilder(blobId).setContentType(contentType).build();
 
-                    // Processamento direto sem cadeia reativa complexa
                     Path tempFile = Files.createTempFile("upload-", originalFilename);
 
                     try {
-                        // Transferência síncrona do arquivo (em thread isolada)
                         filePart.transferTo(tempFile).block();
-
-                        // Upload para GCS
                         storage.createFrom(blobInfo, tempFile);
                         logger.info("Upload concluído: {}", fileName);
-
                         return String.format("https://storage.googleapis.com/%s/%s", bucketName, fileName);
-
                     } finally {
-                        // Limpeza garantida do arquivo temporário
                         try {
                             Files.deleteIfExists(tempFile);
-                            logger.debug("Arquivo temporário removido: {}", tempFile);
                         } catch (IOException ex) {
                             logger.warn("Falha ao excluir arquivo temporário: {}", tempFile);
                         }
@@ -93,7 +64,6 @@ public class CloudStorageService {
                 .onErrorMap(e -> new IOException("Erro ao enviar arquivo para o bucket " + bucketName, e));
     }
 
-    // 🎯 MÉTODO AUXILIAR: Determina content type pela extensão do arquivo
     private String getContentTypeFromFilename(String filename) {
         if (filename.toLowerCase().endsWith(".jpg") || filename.toLowerCase().endsWith(".jpeg")) {
             return "image/jpeg";
@@ -104,5 +74,34 @@ public class CloudStorageService {
         } else {
             return "application/octet-stream";
         }
+    }
+
+    // ✅ NOVO MÉTODO ADICIONADO
+    /**
+     * Deleta um arquivo do bucket do GCS com base em sua URL completa.
+     * @param fileUrl A URL pública do arquivo a ser deletado.
+     * @return Mono<Void> que completa quando a deleção é concluída.
+     */
+    public Mono<Void> deleteFile(String fileUrl) {
+        return Mono.fromRunnable(() -> {
+            try {
+                if (fileUrl == null || !fileUrl.contains(bucketName)) {
+                    logger.warn("URL de arquivo inválida para deleção: {}", fileUrl);
+                    return;
+                }
+                String objectName = fileUrl.substring(fileUrl.indexOf(bucketName) + bucketName.length() + 1);
+                BlobId blobId = BlobId.of(bucketName, objectName);
+
+                boolean deleted = storage.delete(blobId);
+
+                if (deleted) {
+                    logger.info("Arquivo órfão deletado com sucesso: {}", objectName);
+                } else {
+                    logger.warn("Arquivo órfão não encontrado para deleção: {}", objectName);
+                }
+            } catch (Exception e) {
+                logger.error("Erro ao tentar deletar arquivo órfão: " + fileUrl, e);
+            }
+        }).subscribeOn(Schedulers.boundedElastic()).then();
     }
 }

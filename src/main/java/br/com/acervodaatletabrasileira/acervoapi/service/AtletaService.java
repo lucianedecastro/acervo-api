@@ -15,8 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 public class AtletaService {
@@ -44,6 +42,9 @@ public class AtletaService {
                                     .map(url -> new FotoAcervo(url, fotoDto.legenda())) : Mono.empty();
                         })
                         .collectList().flatMap(fotosDaGaleria -> {
+                            if (fotosDaGaleria.isEmpty() && !dto.fotos().stream().allMatch(f -> f.url() != null)) {
+                                return Mono.error(new IllegalStateException("Nenhuma imagem nova foi processada para criação."));
+                            }
                             Atleta novaAtleta = new Atleta();
                             novaAtleta.setNome(dto.nome());
                             novaAtleta.setModalidade(dto.modalidade());
@@ -51,10 +52,14 @@ public class AtletaService {
                             novaAtleta.setCompeticao(dto.competicao());
                             novaAtleta.setFotos(fotosDaGaleria);
 
-                            // ✅ LÓGICA DE DESTAQUE CORRIGIDA
                             definirFotoDestaque(novaAtleta, dto.fotos(), filesMap);
 
-                            return directService.saveAtleta(novaAtleta);
+                            return directService.saveAtleta(novaAtleta)
+                                    .onErrorResume(error ->
+                                            Flux.fromIterable(fotosDaGaleria)
+                                                    .flatMap(foto -> cloudStorageService.deleteFile(foto.getUrl()))
+                                                    .then(Mono.error(error))
+                                    );
                         })
         );
     }
@@ -83,7 +88,6 @@ public class AtletaService {
                         atletaExistente.setCompeticao(dto.competicao());
                         atletaExistente.setFotos(novaListaDeFotos);
 
-                        // ✅ LÓGICA DE DESTAQUE CORRIGIDA
                         definirFotoDestaque(atletaExistente, dto.fotos(), filesMap);
 
                         return directService.saveAtleta(atletaExistente);
@@ -91,29 +95,23 @@ public class AtletaService {
                 });
     }
 
-    /**
-     * ✅ LÓGICA DE DESTAQUE ROBUSTA
-     * Encontra e define a foto destaque na atleta usando uma chave confiável.
-     */
     private void definirFotoDestaque(Atleta atleta, List<FotoDTO> fotosDto, Map<String, FilePart> filesMap) {
-        atleta.getFotos().forEach(f -> f.setEhDestaque(false)); // Reseta todos os destaques
+        atleta.getFotos().forEach(f -> f.setEhDestaque(false));
 
         Optional<FotoDTO> destaqueDtoOpt = fotosDto.stream().filter(FotoDTO::ehDestaque).findFirst();
         if (destaqueDtoOpt.isEmpty() && !fotosDto.isEmpty()) {
-            destaqueDtoOpt = Optional.of(fotosDto.get(0)); // Fallback para o primeiro
+            destaqueDtoOpt = Optional.of(fotosDto.get(0));
         }
 
         destaqueDtoOpt.ifPresent(destaqueDto -> {
             Optional<FotoAcervo> fotoDeDestaqueOpt;
             if (destaqueDto.filename() != null && filesMap.containsKey(destaqueDto.filename())) {
-                // A foto destaque é uma foto NOVA, identifica pela legenda/nome do arquivo
                 fotoDeDestaqueOpt = atleta.getFotos().stream()
-                        .filter(f -> f.getLegenda().equals(destaqueDto.legenda()))
+                        .filter(f -> Objects.equals(f.getLegenda(), destaqueDto.legenda()))
                         .findFirst();
             } else {
-                // A foto destaque é uma foto EXISTENTE, identifica pelo ID
                 fotoDeDestaqueOpt = atleta.getFotos().stream()
-                        .filter(f -> f.getId().equals(destaqueDto.id()))
+                        .filter(f -> Objects.equals(f.getId(), destaqueDto.id()))
                         .findFirst();
             }
 
@@ -123,7 +121,6 @@ public class AtletaService {
             });
         });
 
-        // Fallback final: se nada foi definido, define a primeira da lista
         if (atleta.getFotoDestaqueId() == null && !atleta.getFotos().isEmpty()) {
             FotoAcervo primeiraFoto = atleta.getFotos().get(0);
             primeiraFoto.setEhDestaque(true);
