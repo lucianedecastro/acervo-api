@@ -1,6 +1,7 @@
 package br.com.acervodaatletabrasileira.acervoapi.service;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
+import br.com.acervodaatletabrasileira.acervoapi.model.Modalidade; // ✅ IMPORTAR
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.Firestore;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,18 +22,28 @@ public class FirestoreDirectService {
      */
     public Mono<Atleta> saveAtleta(Atleta atleta) {
         return Mono.fromCallable(() -> {
-            // 🎯 GERA ID MANUALMENTE - SEM MAGIA DO SPRING!
-            if (atleta.getId() == null) {
+            if (atleta.getId() == null || atleta.getId().isBlank()) {
                 atleta.setId(UUID.randomUUID().toString());
-                System.out.println("🔑 ID gerado manualmente: " + atleta.getId());
             }
-
-            // 🎯 SALVA DIRETO NO FIRESTORE - CONTROLE TOTAL!
             DocumentReference docRef = firestore.collection("atletas").document(atleta.getId());
             docRef.set(atleta).get();
-
-            System.out.println("💾 Atleta salva diretamente no Firestore: " + atleta.getId());
             return atleta;
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    // ✅ NOVO MÉTODO PARA SALVAR MODALIDADES
+    /**
+     * Salva modalidade diretamente no Firestore.
+     */
+    public Mono<Modalidade> saveModalidade(Modalidade modalidade) {
+        return Mono.fromCallable(() -> {
+            // Gera ID manualmente se for uma nova modalidade
+            if (modalidade.getId() == null || modalidade.getId().isBlank()) {
+                modalidade.setId(UUID.randomUUID().toString());
+            }
+            DocumentReference docRef = firestore.collection("modalidades").document(modalidade.getId());
+            docRef.set(modalidade).get();
+            return modalidade;
         }).subscribeOn(Schedulers.boundedElastic());
     }
 }
