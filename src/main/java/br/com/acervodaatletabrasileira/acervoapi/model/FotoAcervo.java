@@ -1,5 +1,6 @@
 package br.com.acervodaatletabrasileira.acervoapi.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -8,21 +9,18 @@ import lombok.AllArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FotoAcervo {
-    // 🆕 CAMPO NOVO - ID único para cada foto
     private String id;
+    private String url;
+    private String legenda;
 
-    // ✅ CAMPOS EXISTENTES (mantidos)
-    private String url;     // URL no Google Cloud Storage
-    private String legenda; // Legenda da foto
 
-    // 🆕 CAMPO NOVO - controle de destaque
+    @JsonProperty("ehDestaque")
     private Boolean ehDestaque;
 
-    // 🆕 CONSTRUTOR COMPATÍVEL - para não quebrar código existente
     public FotoAcervo(String url, String legenda) {
-        this.id = java.util.UUID.randomUUID().toString(); // 🎯 Gera ID automático
+        this.id = java.util.UUID.randomUUID().toString();
         this.url = url;
         this.legenda = legenda;
-        this.ehDestaque = false; // Por padrão não é destaque
+        this.ehDestaque = false;
     }
 }
