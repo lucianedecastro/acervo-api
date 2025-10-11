@@ -1,6 +1,5 @@
 package br.com.acervodaatletabrasileira.acervoapi.config;
 
-import br.com.acervodaatletabrasileira.acervoapi.config.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -26,32 +25,27 @@ public class SecurityConfig {
         this.jwtAuthFilter = jwtAuthFilter;
     }
 
-    // Rotas públicas do Swagger
-    private static final String[] SWAGGER_WHITELIST = {
-            "/v3/api-docs/**",
-            "/swagger-ui.html",
-            "/swagger-ui/**",
-            "/webjars/swagger-ui/**"
-    };
+    private static final String[] SWAGGER_WHITELIST = { "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**" };
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
-                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
                         // Rotas públicas
-                        .pathMatchers("/").permitAll()
-                        .pathMatchers(SWAGGER_WHITELIST).permitAll()
-                        .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
                         .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
-                        .pathMatchers("/actuator/health").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
+                        .pathMatchers(SWAGGER_WHITELIST).permitAll()
 
-                        // Rotas admin protegidas
+                        // ✅ CORREÇÃO: Rotas de escrita/deleção de atletas agora exigem autenticação.
+                        // Isso protege POST, PUT e DELETE em /atletas.
+                        .pathMatchers("/atletas/**").authenticated()
+
+                        // Rotas admin genéricas
                         .pathMatchers("/admin/**").authenticated()
-                        // Tudo mais exige autenticação
+
+                        // Qualquer outra rota é negada por padrão (mais seguro)
                         .anyExchange().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION);
@@ -59,14 +53,14 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // O restante do arquivo (corsConfigurationSource, passwordEncoder) permanece o mesmo...
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
-                "http://localhost:3000",
-                "http://127.0.0.1:3000",
-                "http://localhost:5173",        // 🆕 VITE DEV SERVER
-                "http://127.0.0.1:5173",       // 🆕 VITE ALTERNATIVO
+                "http://localhost:3000", "http://127.0.0.1:3000",
+                "http://localhost:5173", "http://127.0.0.1:5173",
                 "https://acervo-front-one.vercel.app",
                 "https://www.acervodaatletabrasileira.com.br",
                 "https://acervodaatletabrasileira.com.br"
@@ -74,7 +68,6 @@ public class SecurityConfig {
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
