@@ -12,6 +12,7 @@ br\com\acervodaatletabrasileira\acervoapi\AcervoApiApplication.class
 br\com\acervodaatletabrasileira\acervoapi\repository\AtletaRepository.class
 br\com\acervodaatletabrasileira\acervoapi\repository\UsuarioAdminRepository.class
 br\com\acervodaatletabrasileira\acervoapi\service\UsuarioAdminService.class
+br\com\acervodaatletabrasileira\acervoapi\dto\FotoDTO.class
 br\com\acervodaatletabrasileira\acervoapi\model\Atleta.class
 br\com\acervodaatletabrasileira\acervoapi\model\UsuarioAdmin.class
 br\com\acervodaatletabrasileira\acervoapi\service\AtletaService.class

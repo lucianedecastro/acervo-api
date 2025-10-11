@@ -2,6 +2,7 @@ C:\Users\Luciane\AcervoCarmenLydia\acervo-api\src\main\java\br\com\acervodaatlet
 C:\Users\Luciane\AcervoCarmenLydia\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\controller\AuthController.java
 C:\Users\Luciane\AcervoCarmenLydia\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\service\JwtService.java
 C:\Users\Luciane\AcervoCarmenLydia\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\config\FirestoreCheck.java
+C:\Users\Luciane\AcervoCarmenLydia\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\dto\FotoDTO.java
 C:\Users\Luciane\AcervoCarmenLydia\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\service\AuthService.java
 C:\Users\Luciane\AcervoCarmenLydia\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\dto\AtletaFormDTO.java
 C:\Users\Luciane\AcervoCarmenLydia\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\controller\AtletaController.java

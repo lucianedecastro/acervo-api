@@ -6,7 +6,13 @@
   <component name="ChangeListManager">
     <list default="true" id="f0b245dc-5670-4984-a57b-af6a8bf547d1" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/CloudStorageService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/CloudStorageService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/controller/AtletaController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/controller/AtletaController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/dto/AtletaFormDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/dto/AtletaFormDTO.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/AtletaService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/acervodaatletabrasileira/acervoapi/service/AtletaService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/acervo-api-0.0.1-SNAPSHOT.jar" beforeDir="false" afterPath="$PROJECT_DIR$/target/acervo-api-0.0.1-SNAPSHOT.jar" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/acervo-api-0.0.1-SNAPSHOT.jar.original" beforeDir="false" afterPath="$PROJECT_DIR$/target/acervo-api-0.0.1-SNAPSHOT.jar.original" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/surefire-reports/TEST-br.com.acervodaatletabrasileira.acervoapi.AcervoApiApplicationTests.xml" beforeDir="false" afterPath="$PROJECT_DIR$/target/surefire-reports/TEST-br.com.acervodaatletabrasileira.acervoapi.AcervoApiApplicationTests.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/surefire-reports/br.com.acervodaatletabrasileira.acervoapi.AcervoApiApplicationTests.txt" beforeDir="false" afterPath="$PROJECT_DIR$/target/surefire-reports/br.com.acervodaatletabrasileira.acervoapi.AcervoApiApplicationTests.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -17,8 +23,8 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Interface" />
-        <option value="Record" />
         <option value="Class" />
+        <option value="Record" />
       </list>
     </option>
   </component>

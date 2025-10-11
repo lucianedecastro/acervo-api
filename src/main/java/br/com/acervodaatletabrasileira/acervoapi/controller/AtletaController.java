@@ -2,9 +2,7 @@ package br.com.acervodaatletabrasileira.acervoapi.controller;
 
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaFormDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
-import br.com.acervodaatletabrasileira.acervoapi.model.FotoAcervo;
 import br.com.acervodaatletabrasileira.acervoapi.service.AtletaService;
-import br.com.acervodaatletabrasileira.acervoapi.service.CloudStorageService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,12 +17,6 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/atletas")
@@ -37,13 +29,8 @@ public class AtletaController {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private final CloudStorageService storageService;
+    // --- READ & DELETE (sem alterações) ---
 
-    public AtletaController(CloudStorageService storageService) {
-        this.storageService = storageService;
-    }
-
-    // --- READ: Listar e Buscar ---
     @Operation(summary = "Lista todas as atletas cadastradas")
     @GetMapping
     public Flux<Atleta> getAllAtletas() {
@@ -62,131 +49,55 @@ public class AtletaController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // --- CREATE: Adiciona uma nova atleta ---
-    @Operation(summary = "Adiciona uma nova atleta (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Atleta criada com sucesso"),
-            @ApiResponse(responseCode = "401", description = "Não autorizado")
-    })
-    @PostMapping(consumes = {"multipart/form-data"})
-    @ResponseStatus(HttpStatus.CREATED)
-    public Mono<Atleta> createAtleta(
-            @RequestPart("file") FilePart filePart,
-            @RequestPart("dados") String dadosJson) {
-
-        AtletaFormDTO dto;
-        try {
-            dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
-        } catch (JsonProcessingException e) {
-            return Mono.error(new IllegalArgumentException("Formato de dados 'dados' inválido. Deve ser JSON.", e));
-        }
-
-        Mono<String> imageUrlMono = storageService.uploadFile(filePart)
-                .subscribeOn(Schedulers.boundedElastic());
-
-        return imageUrlMono
-                .map(imageUrl -> {
-                    // 🆕 FOTO COM CONTROLE DE DESTAQUE
-                    FotoAcervo novaFoto = new FotoAcervo(imageUrl, dto.legenda());
-                    novaFoto.setEhDestaque(true); // 🎯 Primeira foto é sempre destaque
-
-                    Atleta novaAtleta = new Atleta();
-                    novaAtleta.setNome(dto.nome());
-                    novaAtleta.setModalidade(dto.modalidade());
-                    novaAtleta.setBiografia(dto.biografia());
-                    novaAtleta.setCompeticao(dto.competicao());
-
-                    List<FotoAcervo> fotos = new ArrayList<>();
-                    fotos.add(novaFoto);
-                    novaAtleta.setFotos(fotos);
-                    novaAtleta.setFotoDestaqueId(novaFoto.getId()); // 🎯 Define destaque
-
-                    return novaAtleta;
-                })
-                .flatMap(atletaService::save);
+    @Operation(summary = "Remove uma atleta do banco de dados (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> deleteAtleta(@PathVariable("id") String id) {
+        return atletaService.deleteById(id);
     }
 
-    // --- UPDATE: Atualiza informações de uma atleta ---
-    @Operation(summary = "Atualiza informações de uma atleta (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Atleta atualizada com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
-            @ApiResponse(responseCode = "401", description = "Não autorizado"),
-            @ApiResponse(responseCode = "404", description = "Atleta não encontrada")
-    })
+
+    // --- CREATE & UPDATE (simplificados para galeria múltipla) ---
+
+    @Operation(summary = "Adiciona uma nova atleta com galeria de fotos (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping(consumes = {"multipart/form-data"})
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<Atleta> createAtletaWithGallery(
+            // ✅ Recebe múltiplos arquivos, não apenas um
+            @RequestPart("files") Flux<FilePart> filePartFlux,
+            @RequestPart("dados") String dadosJson) {
+
+        AtletaFormDTO dto;
+        try {
+            // Converte o JSON de dados para nosso novo DTO
+            dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
+        } catch (JsonProcessingException e) {
+            return Mono.error(new IllegalArgumentException("Formato de 'dados' inválido. Deve ser JSON.", e));
+        }
+
+        // ✅ Delega toda a lógica complexa para o serviço
+        return atletaService.createAtletaWithGallery(dto, filePartFlux);
+    }
+
+    @Operation(summary = "Atualiza uma atleta e sua galeria de fotos (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
-    public Mono<ResponseEntity<Atleta>> updateAtleta(
+    public Mono<ResponseEntity<Atleta>> updateAtletaWithGallery(
             @PathVariable("id") String id,
-            @RequestPart(value = "file", required = false) Mono<FilePart> filePartMono,
+            // ✅ Recebe múltiplos novos arquivos (opcional)
+            @RequestPart(value = "files", required = false) Flux<FilePart> filePartFlux,
             @RequestPart("dados") String dadosJson) {
 
         AtletaFormDTO dto;
         try {
             dto = objectMapper.readValue(dadosJson, AtletaFormDTO.class);
         } catch (JsonProcessingException e) {
+            // Retorna um erro 400 (Bad Request) se o JSON for inválido
             return Mono.just(ResponseEntity.badRequest().build());
         }
 
-        return atletaService.findById(id)
-                .flatMap(atletaExistente -> {
-                    // Upload opcional da nova imagem
-                    Mono<String> newImageUrlMono = filePartMono
-                            .flatMap(filePart ->
-                                    storageService.uploadFile(filePart)
-                                            .subscribeOn(Schedulers.boundedElastic())
-                            )
-                            .switchIfEmpty(Mono.justOrEmpty(
-                                    Optional.ofNullable(atletaExistente.getFotos())
-                                            .filter(f -> !f.isEmpty())
-                                            .map(f -> f.get(0).getUrl())
-                            ));
-
-                    return newImageUrlMono.flatMap(finalImageUrl -> {
-                        // Atualiza os campos básicos
-                        atletaExistente.setNome(dto.nome());
-                        atletaExistente.setModalidade(dto.modalidade());
-                        atletaExistente.setBiografia(dto.biografia());
-                        atletaExistente.setCompeticao(dto.competicao());
-
-                        // 🎯 CORREÇÃO INTELIGENTE: PRESERVA FOTOS VÁLIDAS, DESCARTA FANTASMAS
-                        if (finalImageUrl != null && finalImageUrl.contains("storage.googleapis.com")) {
-                            FotoAcervo novaFoto = new FotoAcervo(finalImageUrl, dto.legenda());
-
-                            // 🎯 FILTRA APENAS FOTOS COM URL VÁLIDA DO BUCKET
-                            List<FotoAcervo> fotosValidas = Optional.ofNullable(atletaExistente.getFotos())
-                                    .orElseGet(ArrayList::new)
-                                    .stream()
-                                    .filter(foto -> foto.getUrl() != null && foto.getUrl().contains("storage.googleapis.com"))
-                                    .collect(Collectors.toList());
-
-                            // 🎯 ADICIONA NOVA FOTO À GALERIA VÁLIDA
-                            novaFoto.setEhDestaque(fotosValidas.isEmpty()); // Destaque se for a primeira
-                            fotosValidas.add(novaFoto);
-
-                            atletaExistente.setFotos(fotosValidas);
-
-                            // 🎯 ATUALIZA DESTAQUE: nova foto se for a primeira, senão mantém existente
-                            if (fotosValidas.size() == 1) {
-                                atletaExistente.setFotoDestaqueId(novaFoto.getId());
-                            }
-                            // Se já tinha fotos, mantém o fotoDestaqueId anterior
-                        }
-
-                        return atletaService.update(id, atletaExistente)
-                                .map(ResponseEntity::ok);
-                    });
-                })
+        // ✅ Delega a lógica de atualização para o serviço
+        return atletaService.updateAtletaWithGallery(id, dto, filePartFlux)
+                .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
-    }
-
-    // --- DELETE: Remove uma atleta ---
-    @Operation(summary = "Remove uma atleta do banco de dados (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Atleta deletada com sucesso"),
-            @ApiResponse(responseCode = "401", description = "Não autorizado")
-    })
-    @DeleteMapping("/{id}")
-    public Mono<Void> deleteAtleta(@PathVariable("id") String id) {
-        return atletaService.deleteById(id);
     }
 }
