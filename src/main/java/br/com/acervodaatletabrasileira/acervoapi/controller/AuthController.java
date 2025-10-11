@@ -4,6 +4,7 @@ import br.com.acervodaatletabrasileira.acervoapi.dto.AuthRequest;
 import br.com.acervodaatletabrasileira.acervoapi.model.UsuarioAdmin;
 import br.com.acervodaatletabrasileira.acervoapi.service.AuthService;
 import br.com.acervodaatletabrasileira.acervoapi.service.UsuarioAdminService;
+import io.swagger.v3.oas.annotations.Hidden; // ✅ IMPORTAR
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -26,6 +27,7 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
+    @Hidden // ✅ ANOTAÇÃO ADICIONADA PARA ESCONDER O ENDPOINT DO SWAGGER
     @Operation(summary = "Cadastra um administrador temporário")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Admin cadastrado com sucesso"),
