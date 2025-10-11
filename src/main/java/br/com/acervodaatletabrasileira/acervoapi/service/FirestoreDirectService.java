@@ -1,7 +1,8 @@
 package br.com.acervodaatletabrasileira.acervoapi.service;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
-import br.com.acervodaatletabrasileira.acervoapi.model.Modalidade; // ✅ IMPORTAR
+import br.com.acervodaatletabrasileira.acervoapi.model.Conteudo; // ✅ IMPORTAR
+import br.com.acervodaatletabrasileira.acervoapi.model.Modalidade;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.Firestore;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,9 +18,6 @@ public class FirestoreDirectService {
     @Autowired
     private Firestore firestore;
 
-    /**
-     * Salva atleta diretamente no Firestore, contornando o Spring Data bugado
-     */
     public Mono<Atleta> saveAtleta(Atleta atleta) {
         return Mono.fromCallable(() -> {
             if (atleta.getId() == null || atleta.getId().isBlank()) {
@@ -31,19 +29,27 @@ public class FirestoreDirectService {
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
-    // ✅ NOVO MÉTODO PARA SALVAR MODALIDADES
-    /**
-     * Salva modalidade diretamente no Firestore.
-     */
     public Mono<Modalidade> saveModalidade(Modalidade modalidade) {
         return Mono.fromCallable(() -> {
-            // Gera ID manualmente se for uma nova modalidade
             if (modalidade.getId() == null || modalidade.getId().isBlank()) {
                 modalidade.setId(UUID.randomUUID().toString());
             }
             DocumentReference docRef = firestore.collection("modalidades").document(modalidade.getId());
             docRef.set(modalidade).get();
             return modalidade;
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    // ✅ NOVO MÉTODO PARA SALVAR CONTEÚDOS
+    /**
+     * Salva um bloco de conteúdo diretamente no Firestore.
+     */
+    public Mono<Conteudo> saveConteudo(Conteudo conteudo) {
+        return Mono.fromCallable(() -> {
+            // O slug é o ID, então ele já deve existir.
+            DocumentReference docRef = firestore.collection("conteudos").document(conteudo.getSlug());
+            docRef.set(conteudo).get();
+            return conteudo;
         }).subscribeOn(Schedulers.boundedElastic());
     }
 }
