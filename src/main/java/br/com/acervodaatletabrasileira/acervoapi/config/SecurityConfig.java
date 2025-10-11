@@ -33,17 +33,20 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
-                        // Permite todas as requisições de pre-flight (OPTIONS) do CORS.
-
+                        // Regras de Pre-flight e Login
                         .pathMatchers(HttpMethod.OPTIONS).permitAll()
-
-                        // Regras Públicas
                         .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
                         .pathMatchers(SWAGGER_WHITELIST).permitAll()
-                        .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
 
-                        // Regras Protegidas
+                        // ✅ CORREÇÃO: Torna a LEITURA de modalidades e conteúdos pública
+                        .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/modalidades/**").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/conteudos/**").permitAll()
+
+                        // Regras Protegidas (qualquer outra ação exige autenticação)
                         .pathMatchers("/atletas/**").authenticated()
+                        .pathMatchers("/modalidades/**").authenticated()
+                        .pathMatchers("/conteudos/**").authenticated()
                         .pathMatchers("/admin/**").authenticated()
 
                         .anyExchange().authenticated()
