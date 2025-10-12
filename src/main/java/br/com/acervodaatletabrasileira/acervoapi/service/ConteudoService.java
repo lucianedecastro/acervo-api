@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import java.util.UUID; // ✅ Importar para gerar o ID
 
 @Service
 public class ConteudoService {
@@ -14,37 +15,38 @@ public class ConteudoService {
     @Autowired
     private ConteudoRepository repository;
 
-    // ✅ CORREÇÃO: Renomeado para clareza, mas chama o método padrão que agora busca pelo slug.
-    public Mono<Conteudo> findBySlug(String slug) {
-        return repository.findById(slug);
+    // Os métodos de busca agora usam 'id'
+    public Mono<Conteudo> findById(String id) {
+        return repository.findById(id);
     }
 
     public Flux<Conteudo> findAll() {
         return repository.findAll();
     }
 
-    // ✅ CORREÇÃO: Cria um novo documento usando o slug do DTO como ID.
+    // ✅ CORREÇÃO: O save agora gera um UUID para o campo 'id'
     public Mono<Conteudo> save(ConteudoDTO dto) {
         Conteudo novoConteudo = new Conteudo();
-        novoConteudo.setSlug(dto.slug()); // O ID do documento será este slug
+        novoConteudo.setId(UUID.randomUUID().toString()); // Gera o ID
+        novoConteudo.setSlug(dto.slug());
         novoConteudo.setTitulo(dto.titulo());
         novoConteudo.setConteudoHTML(dto.conteudoHTML());
         return repository.save(novoConteudo);
     }
 
-    // ✅ CORREÇÃO: Usa o slug para encontrar o documento e então o atualiza.
-    public Mono<Conteudo> update(String slug, ConteudoDTO dto) {
-        return repository.findById(slug)
+    // ✅ CORREÇÃO: O update usa o 'id' para encontrar e salvar.
+    public Mono<Conteudo> update(String id, ConteudoDTO dto) {
+        return repository.findById(id)
                 .flatMap(existingConteudo -> {
                     existingConteudo.setTitulo(dto.titulo());
+                    existingConteudo.setSlug(dto.slug()); // Slug agora pode ser editado
                     existingConteudo.setConteudoHTML(dto.conteudoHTML());
-                    // O slug (ID) não deve ser alterado durante uma edição
                     return repository.save(existingConteudo);
                 });
     }
 
-    // ✅ CORREÇÃO: Deleta o documento usando o slug como ID.
-    public Mono<Void> deleteBySlug(String slug) {
-        return repository.deleteById(slug);
+    // ✅ CORREÇÃO: O delete usa 'id'.
+    public Mono<Void> deleteById(String id) {
+        return repository.deleteById(id);
     }
 }

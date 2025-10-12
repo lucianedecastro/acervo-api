@@ -31,7 +31,7 @@ public class ModalidadeController {
     @Autowired
     private ObjectMapper objectMapper;
 
-    // --- MÉTODOS READ E CREATE (Sem alterações) ---
+    // --- READ ---
     @Operation(summary = "Lista todas as modalidades")
     @GetMapping
     public Flux<Modalidade> getAllModalidades() {
@@ -40,12 +40,14 @@ public class ModalidadeController {
 
     @Operation(summary = "Busca uma modalidade pelo ID")
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<Modalidade>> getModalidadeById(@PathVariable String id) {
+    // ✅ CORREÇÃO: Especifica o nome do path variable para máxima clareza.
+    public Mono<ResponseEntity<Modalidade>> getModalidadeById(@PathVariable("id") String id) {
         return modalidadeService.findById(id)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
+    // --- CREATE ---
     @Operation(summary = "Cria uma nova modalidade (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @PostMapping(consumes = {"multipart/form-data"})
     @ResponseStatus(HttpStatus.CREATED)
@@ -74,11 +76,12 @@ public class ModalidadeController {
                 });
     }
 
-    // --- ✅ MÉTODO UPDATE CORRIGIDO ---
+    // --- UPDATE ---
     @Operation(summary = "Atualiza uma modalidade (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public Mono<ResponseEntity<Modalidade>> updateModalidade(
-            @PathVariable String id,
+            // ✅ CORREÇÃO: Especifica o nome do path variable.
+            @PathVariable("id") String id,
             @RequestPart(value = "file", required = false) Mono<FilePart> filePartMono,
             @RequestPart("dados") String dadosJson) {
 
@@ -89,24 +92,22 @@ public class ModalidadeController {
             return Mono.just(ResponseEntity.badRequest().build());
         }
 
-        // 1. Processa o upload do arquivo. Se nenhum arquivo for enviado (Mono vazio),
-        // o resultado será `null`. Isso é importante para o Service saber que não deve alterar a URL.
         Mono<String> uploadMono = filePartMono
                 .flatMap(storageService::uploadFile)
-                .defaultIfEmpty(null); // Se não houver arquivo, emite 'null'
+                .defaultIfEmpty(null);
 
-        // 2. Chama o service para atualizar a modalidade
         return uploadMono.flatMap(pictogramaUrl ->
                 modalidadeService.update(id, dto, pictogramaUrl)
                         .map(ResponseEntity::ok)
         ).defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // --- MÉTODO DELETE (Sem alterações) ---
+    // --- DELETE ---
     @Operation(summary = "Deleta uma modalidade (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<Void> deleteModalidade(@PathVariable String id) {
+    // ✅ CORREÇÃO: Especifica o nome do path variable.
+    public Mono<Void> deleteModalidade(@PathVariable("id") String id) {
         return modalidadeService.deleteById(id);
     }
 }
