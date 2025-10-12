@@ -16,7 +16,7 @@ public class ConteudoService {
     @Autowired
     private FirestoreDirectService directService;
 
-    // --- MÉTODOS DE LEITURA (Gasolina ⛽) ---
+    // --- MÉTODOS DE LEITURA ---
     public Flux<Conteudo> findAll() {
         return repository.findAll();
     }
@@ -25,9 +25,10 @@ public class ConteudoService {
         return repository.findById(slug);
     }
 
-    // --- MÉTODO DE ESCRITA (Álcool 🌽) ---
+    // --- MÉTODO DE ESCRITA CORRIGIDO ---
     public Mono<Conteudo> save(Conteudo conteudo) {
-        // O slug (ID) e o título vêm do DTO no Controller
-        return directService.saveConteudo(conteudo);
+        // ✅ CORREÇÃO: Usa o repository.save() em vez do directService
+        // O FirestoreReactiveRepository já cuida de criar/atualizar automaticamente
+        return repository.save(conteudo);
     }
 }

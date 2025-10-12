@@ -35,6 +35,20 @@ public class ConteudoController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
+    // --- CREATE ---
+    @Operation(summary = "Cria um novo bloco de conteúdo (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
+    @PostMapping
+    public Mono<ResponseEntity<Conteudo>> createConteudo(@RequestBody ConteudoDTO dto) {
+        // ✅ NOVO MÉTODO: Cria conteúdo do zero
+        Conteudo novoConteudo = new Conteudo();
+        novoConteudo.setSlug(dto.slug()); // Define o slug como ID
+        novoConteudo.setTitulo(dto.titulo());
+        novoConteudo.setConteudoHTML(dto.conteudoHTML());
+
+        return conteudoService.save(novoConteudo)
+                .map(ResponseEntity::ok);
+    }
+
     // --- UPDATE ---
     @Operation(summary = "Atualiza um bloco de conteúdo (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @PutMapping("/{slug}")
