@@ -9,6 +9,7 @@ public record AtletaFormDTO(
         String biografia,
         String competicao,
         List<FotoDTO> fotos,
-        String fotoDestaqueId // O ID da foto que deve ser marcada como destaque
+        String fotoDestaqueId,
+        List<String> fotosRemovidas
 ) {
 }
