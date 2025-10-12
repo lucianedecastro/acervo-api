@@ -31,7 +31,7 @@ public class ModalidadeController {
     @Autowired
     private ObjectMapper objectMapper;
 
-    // --- READ ---
+    // --- MÉTODOS READ E CREATE (Sem alterações) ---
     @Operation(summary = "Lista todas as modalidades")
     @GetMapping
     public Flux<Modalidade> getAllModalidades() {
@@ -46,7 +46,6 @@ public class ModalidadeController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // --- CREATE ---
     @Operation(summary = "Cria uma nova modalidade (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @PostMapping(consumes = {"multipart/form-data"})
     @ResponseStatus(HttpStatus.CREATED)
@@ -62,8 +61,8 @@ public class ModalidadeController {
         }
 
         return filePartMono
-                .flatMap(storageService::uploadFile) // Faz upload do arquivo, se existir
-                .defaultIfEmpty("") // Se não houver arquivo, retorna uma string vazia
+                .flatMap(storageService::uploadFile)
+                .defaultIfEmpty("")
                 .flatMap(pictogramaUrl -> {
                     Modalidade novaModalidade = new Modalidade();
                     novaModalidade.setNome(dto.nome());
@@ -75,7 +74,7 @@ public class ModalidadeController {
                 });
     }
 
-    // --- UPDATE ---
+    // --- ✅ MÉTODO UPDATE CORRIGIDO ---
     @Operation(summary = "Atualiza uma modalidade (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public Mono<ResponseEntity<Modalidade>> updateModalidade(
@@ -90,25 +89,20 @@ public class ModalidadeController {
             return Mono.just(ResponseEntity.badRequest().build());
         }
 
-        return modalidadeService.findById(id)
-                .flatMap(existingModalidade ->
-                        filePartMono
-                                .flatMap(storageService::uploadFile)
-                                .defaultIfEmpty(existingModalidade.getPictogramaUrl()) // Mantém a URL antiga se não houver novo arquivo
-                                .flatMap(pictogramaUrl -> {
-                                    Modalidade modalidadeAtualizada = new Modalidade();
-                                    modalidadeAtualizada.setNome(dto.nome());
-                                    modalidadeAtualizada.setHistoria(dto.historia());
-                                    modalidadeAtualizada.setPictogramaUrl(pictogramaUrl);
+        // 1. Processa o upload do arquivo. Se nenhum arquivo for enviado (Mono vazio),
+        // o resultado será `null`. Isso é importante para o Service saber que não deve alterar a URL.
+        Mono<String> uploadMono = filePartMono
+                .flatMap(storageService::uploadFile)
+                .defaultIfEmpty(null); // Se não houver arquivo, emite 'null'
 
-                                    return modalidadeService.update(id, modalidadeAtualizada)
-                                            .map(ResponseEntity::ok);
-                                })
-                )
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+        // 2. Chama o service para atualizar a modalidade
+        return uploadMono.flatMap(pictogramaUrl ->
+                modalidadeService.update(id, dto, pictogramaUrl)
+                        .map(ResponseEntity::ok)
+        ).defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // --- DELETE ---
+    // --- MÉTODO DELETE (Sem alterações) ---
     @Operation(summary = "Deleta uma modalidade (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

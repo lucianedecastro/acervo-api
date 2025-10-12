@@ -1,5 +1,6 @@
 package br.com.acervodaatletabrasileira.acervoapi.service;
 
+import br.com.acervodaatletabrasileira.acervoapi.dto.ModalidadeDTO; // ✅ Importar o DTO
 import br.com.acervodaatletabrasileira.acervoapi.model.Modalidade;
 import br.com.acervodaatletabrasileira.acervoapi.repository.ModalidadeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +20,7 @@ public class ModalidadeService {
     @Autowired
     private CloudStorageService storageService;
 
-    // --- MÉTODOS DE LEITURA ---
+    // --- MÉTODOS DE LEITURA (Sem alterações) ---
     public Flux<Modalidade> findAll() {
         return repository.findAll();
     }
@@ -28,39 +29,39 @@ public class ModalidadeService {
         return repository.findById(id);
     }
 
-    // --- MÉTODOS DE ESCRITA (usando a estratégia híbrida) ---
-
-    // Salvar uma nova modalidade (usa o Álcool 🌽)
+    // --- MÉTODOS DE ESCRITA (Sem alterações no save) ---
     public Mono<Modalidade> save(Modalidade modalidade) {
-        // A lógica de upload do pictograma será feita no Controller
         return directService.saveModalidade(modalidade);
     }
 
-    // Atualizar uma modalidade existente
-    public Mono<Modalidade> update(String id, Modalidade modalidade) {
+    // ✅ MÉTODO UPDATE CORRIGIDO E OTIMIZADO
+    // Agora ele recebe o DTO e a nova URL do pictograma separadamente.
+    public Mono<Modalidade> update(String id, ModalidadeDTO dto, String pictogramaUrl) {
         return repository.findById(id)
                 .flatMap(existingModalidade -> {
-                    existingModalidade.setNome(modalidade.getNome());
-                    existingModalidade.setHistoria(modalidade.getHistoria());
-                    // A URL do pictograma será atualizada se uma nova for fornecida
-                    if (modalidade.getPictogramaUrl() != null) {
-                        existingModalidade.setPictogramaUrl(modalidade.getPictogramaUrl());
+                    // Atualiza os campos da entidade existente com os dados do DTO
+                    existingModalidade.setNome(dto.nome());
+                    existingModalidade.setHistoria(dto.historia());
+
+                    // A URL do pictograma só é atualizada se uma nova for fornecida.
+                    // Se pictogramaUrl for null, significa que nenhum novo arquivo foi enviado.
+                    if (pictogramaUrl != null) {
+                        existingModalidade.setPictogramaUrl(pictogramaUrl);
                     }
-                    // Salva a atualização usando o Álcool 🌽
+
+                    // Salva a entidade já existente e atualizada
                     return directService.saveModalidade(existingModalidade);
                 });
     }
 
-    // Deletar uma modalidade
+    // --- MÉTODO DE DELETE (Sem alterações) ---
     public Mono<Void> deleteById(String id) {
         return repository.findById(id)
                 .flatMap(modalidade -> {
                     Mono<Void> deletePictogramMono = Mono.empty();
-                    // Se houver um pictograma, cria uma tarefa para deletá-lo
                     if (modalidade.getPictogramaUrl() != null && !modalidade.getPictogramaUrl().isBlank()) {
                         deletePictogramMono = storageService.deleteFile(modalidade.getPictogramaUrl());
                     }
-                    // Executa a deleção do pictograma e SÓ DEPOIS deleta a modalidade do banco
                     return deletePictogramMono.then(repository.deleteById(id));
                 })
                 .then();
