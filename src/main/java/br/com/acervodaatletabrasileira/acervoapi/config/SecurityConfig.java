@@ -25,7 +25,12 @@ public class SecurityConfig {
         this.jwtAuthFilter = jwtAuthFilter;
     }
 
-    private static final String[] SWAGGER_WHITELIST = { "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**" };
+    // ✅ SWAGGER_WHITELIST: Rotas de documentação liberadas
+    private static final String[] SWAGGER_WHITELIST = {
+            "/v3/api-docs/**",
+            "/swagger-ui.html",
+            "/swagger-ui/**"
+    };
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
@@ -36,9 +41,9 @@ public class SecurityConfig {
                         // Regras de Pre-flight e Login
                         .pathMatchers(HttpMethod.OPTIONS).permitAll()
                         .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
-                        .pathMatchers(SWAGGER_WHITELIST).permitAll()
+                        .pathMatchers(SWAGGER_WHITELIST).permitAll() // <-- 1. Libera o acesso ao Swagger SEM AUTENTICAÇÃO
 
-                        // ✅ CORREÇÃO: Torna a LEITURA de modalidades e conteúdos pública
+                        // ✅ Torna a LEITURA de modalidades e conteúdos pública
                         .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
                         .pathMatchers(HttpMethod.GET, "/modalidades/**").permitAll()
                         .pathMatchers(HttpMethod.GET, "/conteudos/**").permitAll()
