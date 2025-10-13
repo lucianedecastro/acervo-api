@@ -42,17 +42,16 @@ public class SecurityConfig {
                         // Regras de Pre-flight e Login
                         .pathMatchers(HttpMethod.OPTIONS).permitAll()
                         .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
-                        .pathMatchers(SWAGGER_WHITELIST).permitAll() // <-- 1. Libera o acesso ao Swagger SEM AUTENTICAÇÃO
+                        .pathMatchers(SWAGGER_WHITELIST).permitAll() //
 
                         // ✅ Torna a LEITURA de modalidades e conteúdos pública
                         .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
                         .pathMatchers(HttpMethod.GET, "/modalidades/**").permitAll()
-                        .pathMatchers(HttpMethod.GET, "/conteudos/**").permitAll()
+
 
                         // Regras Protegidas (qualquer outra ação exige autenticação)
                         .pathMatchers("/atletas/**").authenticated()
                         .pathMatchers("/modalidades/**").authenticated()
-                        .pathMatchers("/conteudos/**").authenticated()
                         .pathMatchers("/admin/**").authenticated()
 
                         .anyExchange().authenticated()

@@ -7,11 +7,10 @@ import lombok.Data;
 @Document(collectionName = "modalidades")
 public class Modalidade {
 
-    // Usaremos a mesma estratégia de ID do Atleta:
-    // um UUID em string que será gerenciado pelo nosso serviço.
+
     private String id;
 
     private String nome;
     private String pictogramaUrl;
-    private String historia; // Armazenará o HTML do RichTextEditor
+    private String historia;
 }

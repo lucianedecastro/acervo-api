@@ -1,4 +1,3 @@
-br\com\acervodaatletabrasileira\acervoapi\repository\ConteudoRepository.class
 br\com\acervodaatletabrasileira\acervoapi\config\SecurityConfig.class
 br\com\acervodaatletabrasileira\acervoapi\model\FotoAcervo.class
 br\com\acervodaatletabrasileira\acervoapi\repository\ModalidadeRepository.class
@@ -15,13 +14,9 @@ br\com\acervodaatletabrasileira\acervoapi\model\UsuarioAdmin.class
 br\com\acervodaatletabrasileira\acervoapi\service\FirestoreDirectService.class
 br\com\acervodaatletabrasileira\acervoapi\controller\ModalidadeController.class
 br\com\acervodaatletabrasileira\acervoapi\service\JwtService.class
-br\com\acervodaatletabrasileira\acervoapi\dto\ConteudoDTO.class
-br\com\acervodaatletabrasileira\acervoapi\controller\ConteudoController.class
 br\com\acervodaatletabrasileira\acervoapi\config\JwtAuthFilter.class
-br\com\acervodaatletabrasileira\acervoapi\service\ConteudoService.class
 br\com\acervodaatletabrasileira\acervoapi\service\UserDetailsServiceImpl.class
 br\com\acervodaatletabrasileira\acervoapi\config\FirestoreCheck.class
-br\com\acervodaatletabrasileira\acervoapi\model\Conteudo.class
 br\com\acervodaatletabrasileira\acervoapi\service\ModalidadeService.class
 br\com\acervodaatletabrasileira\acervoapi\controller\AtletaController.class
 br\com\acervodaatletabrasileira\acervoapi\AcervoApiApplication.class

@@ -1,7 +1,6 @@
 package br.com.acervodaatletabrasileira.acervoapi.service;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
-import br.com.acervodaatletabrasileira.acervoapi.model.Conteudo; // ✅ IMPORTAR
 import br.com.acervodaatletabrasileira.acervoapi.model.Modalidade;
 import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.Firestore;
@@ -40,16 +39,5 @@ public class FirestoreDirectService {
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
-    // ✅ NOVO MÉTODO PARA SALVAR CONTEÚDOS
-    /**
-     * Salva um bloco de conteúdo diretamente no Firestore.
-     */
-    public Mono<Conteudo> saveConteudo(Conteudo conteudo) {
-        return Mono.fromCallable(() -> {
-            // O slug é o ID, então ele já deve existir.
-            DocumentReference docRef = firestore.collection("conteudos").document(conteudo.getSlug());
-            docRef.set(conteudo).get();
-            return conteudo;
-        }).subscribeOn(Schedulers.boundedElastic());
-    }
+
 }
