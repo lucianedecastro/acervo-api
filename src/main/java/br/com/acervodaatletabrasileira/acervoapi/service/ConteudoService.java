@@ -16,6 +16,10 @@ public class ConteudoService {
     private ConteudoRepository repository;
 
 
+    @Autowired
+    private FirestoreDirectService directService;
+
+    // Os métodos de busca estão corretos
     public Mono<Conteudo> findById(String id) {
         return repository.findById(id);
     }
@@ -27,13 +31,14 @@ public class ConteudoService {
 
     public Mono<Conteudo> save(ConteudoDTO dto) {
         Conteudo novoConteudo = new Conteudo();
-        novoConteudo.setId(UUID.randomUUID().toString());
+        novoConteudo.setId(UUID.randomUUID().toString()); // Gera o ID
         novoConteudo.setSlug(dto.slug());
         novoConteudo.setTitulo(dto.titulo());
         novoConteudo.setConteudoHTML(dto.conteudoHTML());
-        return repository.save(novoConteudo);
-    }
 
+
+        return directService.saveConteudo(novoConteudo);
+    }
 
     public Mono<Conteudo> update(String id, ConteudoDTO dto) {
         return repository.findById(id)
@@ -41,7 +46,9 @@ public class ConteudoService {
                     existingConteudo.setTitulo(dto.titulo());
                     existingConteudo.setSlug(dto.slug());
                     existingConteudo.setConteudoHTML(dto.conteudoHTML());
-                    return repository.save(existingConteudo);
+
+
+                    return directService.saveConteudo(existingConteudo);
                 });
     }
 
