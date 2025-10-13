@@ -80,11 +80,11 @@ public class ModalidadeController {
     @Operation(summary = "Atualiza uma modalidade (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public Mono<ResponseEntity<Modalidade>> updateModalidade(
-            // ✅ CORREÇÃO: Especifica o nome do path variable.
             @PathVariable("id") String id,
             @RequestPart(value = "file", required = false) Mono<FilePart> filePartMono,
             @RequestPart("dados") String dadosJson) {
 
+        // 1. Desserializa o JSON para DTO
         ModalidadeDTO dto;
         try {
             dto = objectMapper.readValue(dadosJson, ModalidadeDTO.class);
@@ -92,10 +92,11 @@ public class ModalidadeController {
             return Mono.just(ResponseEntity.badRequest().build());
         }
 
-        Mono<String> uploadMono = filePartMono
+                Mono<String> uploadMono = filePartMono
                 .flatMap(storageService::uploadFile)
                 .defaultIfEmpty(null);
 
+        // 3. Chama o service para atualizar a modalidade
         return uploadMono.flatMap(pictogramaUrl ->
                 modalidadeService.update(id, dto, pictogramaUrl)
                         .map(ResponseEntity::ok)

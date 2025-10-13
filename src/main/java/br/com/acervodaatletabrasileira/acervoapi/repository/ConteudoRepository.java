@@ -6,7 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ConteudoRepository extends FirestoreReactiveRepository<Conteudo> {
-    // ✅ CORREÇÃO: Nenhum método customizado é necessário.
-    // Como o 'slug' está anotado com @DocumentId, o método findById(String id)
-    // do FirestoreReactiveRepository agora vai buscar pelo slug automaticamente.
+
 }
