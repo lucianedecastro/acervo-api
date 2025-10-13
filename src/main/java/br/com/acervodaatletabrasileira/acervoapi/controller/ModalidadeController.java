@@ -94,13 +94,15 @@ public class ModalidadeController {
 
                 Mono<String> uploadMono = filePartMono
                 .flatMap(storageService::uploadFile)
-                .defaultIfEmpty(null);
+                .defaultIfEmpty("");
 
         // 3. Chama o service para atualizar a modalidade
-        return uploadMono.flatMap(pictogramaUrl ->
-                modalidadeService.update(id, dto, pictogramaUrl)
-                        .map(ResponseEntity::ok)
-        ).defaultIfEmpty(ResponseEntity.notFound().build());
+        return uploadMono.flatMap(pictogramaUrl -> {
+           String urlParaAtualizar = pictogramaUrl.isBlank() ? null : pictogramaUrl;
+
+            return modalidadeService.update(id, dto, urlParaAtualizar)
+                    .map(ResponseEntity::ok);
+        }).defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
     // --- DELETE ---

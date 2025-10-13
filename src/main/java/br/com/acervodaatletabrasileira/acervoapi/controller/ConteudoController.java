@@ -22,7 +22,7 @@ public class ConteudoController {
         return conteudoService.findAll();
     }
 
-    // ✅ CORREÇÃO: A URL agora usa {id}.
+
     @GetMapping("/{id}")
     public Mono<ResponseEntity<Conteudo>> getConteudoById(@PathVariable String id) {
         return conteudoService.findById(id)
@@ -36,7 +36,7 @@ public class ConteudoController {
         return conteudoService.save(conteudoDTO);
     }
 
-    // ✅ CORREÇÃO: A URL de update também usa {id}.
+
     @PutMapping("/{id}")
     public Mono<ResponseEntity<Conteudo>> updateConteudo(
             @PathVariable String id,
@@ -47,7 +47,7 @@ public class ConteudoController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // ✅ CORREÇÃO: A URL de delete também usa {id}.
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deleteConteudo(@PathVariable String id) {
