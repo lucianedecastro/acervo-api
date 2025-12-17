@@ -1,9 +1,8 @@
 package br.com.acervodaatletabrasileira.acervoapi.service;
 
-import br.com.acervodaatletabrasileira.acervoapi.dto.ModalidadeDTO; // ✅ Importar o DTO
+import br.com.acervodaatletabrasileira.acervoapi.dto.ModalidadeDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Modalidade;
 import br.com.acervodaatletabrasileira.acervoapi.repository.ModalidadeRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -11,16 +10,16 @@ import reactor.core.publisher.Mono;
 @Service
 public class ModalidadeService {
 
-    @Autowired
-    private ModalidadeRepository repository;
+    private final ModalidadeRepository repository;
 
-    @Autowired
-    private FirestoreDirectService directService;
+    public ModalidadeService(ModalidadeRepository repository) {
+        this.repository = repository;
+    }
 
-    @Autowired
-    private CloudStorageService storageService;
+    /* ==========================
+       LEITURA (PÚBLICA)
+       ========================== */
 
-    // --- MÉTODOS DE LEITURA (Sem alterações) ---
     public Flux<Modalidade> findAll() {
         return repository.findAll();
     }
@@ -29,41 +28,43 @@ public class ModalidadeService {
         return repository.findById(id);
     }
 
-    // --- MÉTODOS DE ESCRITA (Sem alterações no save) ---
+    /* ==========================
+       CRIAÇÃO (ADMIN)
+       ========================== */
+
     public Mono<Modalidade> save(Modalidade modalidade) {
-        return directService.saveModalidade(modalidade);
+        return repository.save(modalidade);
     }
 
-    // ✅ MÉTODO UPDATE CORRIGIDO E OTIMIZADO
-    // Agora ele recebe o DTO e a nova URL do pictograma separadamente.
-    public Mono<Modalidade> update(String id, ModalidadeDTO dto, String pictogramaUrl) {
+    public Mono<Modalidade> create(ModalidadeDTO dto) {
+        Modalidade modalidade = new Modalidade();
+        modalidade.setNome(dto.nome());
+        modalidade.setHistoria(dto.historia());
+
+        return repository.save(modalidade);
+    }
+
+    /* ==========================
+       ATUALIZAÇÃO (ADMIN)
+       ========================== */
+
+    public Mono<Modalidade> update(String id, ModalidadeDTO dto) {
         return repository.findById(id)
-                .flatMap(existingModalidade -> {
-                    // Atualiza os campos da entidade existente com os dados do DTO
-                    existingModalidade.setNome(dto.nome());
-                    existingModalidade.setHistoria(dto.historia());
-
-                    // A URL do pictograma só é atualizada se uma nova for fornecida.
-                    // Se pictogramaUrl for null, significa que nenhum novo arquivo foi enviado.
-                    if (pictogramaUrl != null) {
-                        existingModalidade.setPictogramaUrl(pictogramaUrl);
-                    }
-
-                    // Salva a entidade já existente e atualizada
-                    return directService.saveModalidade(existingModalidade);
+                .switchIfEmpty(
+                        Mono.error(new IllegalArgumentException("Modalidade não encontrada"))
+                )
+                .flatMap(existing -> {
+                    existing.setNome(dto.nome());
+                    existing.setHistoria(dto.historia());
+                    return repository.save(existing);
                 });
     }
 
-    // --- MÉTODO DE DELETE (Sem alterações) ---
+    /* ==========================
+       DELETE (ADMIN)
+       ========================== */
+
     public Mono<Void> deleteById(String id) {
-        return repository.findById(id)
-                .flatMap(modalidade -> {
-                    Mono<Void> deletePictogramMono = Mono.empty();
-                    if (modalidade.getPictogramaUrl() != null && !modalidade.getPictogramaUrl().isBlank()) {
-                        deletePictogramMono = storageService.deleteFile(modalidade.getPictogramaUrl());
-                    }
-                    return deletePictogramMono.then(repository.deleteById(id));
-                })
-                .then();
+        return repository.deleteById(id);
     }
 }

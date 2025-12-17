@@ -1,13 +1,17 @@
 package br.com.acervodaatletabrasileira.acervoapi.repository;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.Modalidade;
-import com.google.cloud.spring.data.firestore.FirestoreReactiveRepository;
+import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
 
 @Repository
-public interface ModalidadeRepository extends FirestoreReactiveRepository<Modalidade> {
-    // Por enquanto, os métodos padrão (save, findById, findAll, deleteById)
-    // que vêm do FirestoreReactiveRepository são suficientes.
-    // No futuro, se precisarmos de uma busca customizada, como "findByNome",
-    // adicionaríamos a assinatura do método aqui.
+public interface ModalidadeRepository
+        extends ReactiveMongoRepository<Modalidade, String> {
+
+    /**
+     * Busca modalidades pelo nome (case-insensitive),
+     * útil para filtros públicos e curadoria do acervo.
+     */
+    Flux<Modalidade> findByNomeContainingIgnoreCase(String nome);
 }

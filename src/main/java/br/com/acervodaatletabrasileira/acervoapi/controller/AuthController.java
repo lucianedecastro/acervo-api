@@ -9,55 +9,90 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
-import java.util.Date;
+import java.time.Instant;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin")
-@Tag(name = "Autenticação", description = "Endpoint para autenticação de administradores")
+@Tag(name = "Autenticação", description = "Endpoints de autenticação de administradores")
 public class AuthController {
 
-    @Autowired
-    private UsuarioAdminService usuarioAdminService;
+    private final UsuarioAdminService usuarioAdminService;
+    private final AuthService authService;
 
-    @Autowired
-    private AuthService authService;
-
-    @Hidden
-    @Operation(summary = "Cadastra um administrador temporário")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Admin cadastrado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Erro no cadastro")
-    })
-    @PostMapping("/register_temp")
-    public Mono<ResponseEntity<String>> registerAdminTemp(@RequestBody AuthRequest authRequest) {
-        UsuarioAdmin admin = new UsuarioAdmin();
-        admin.setEmail(authRequest.getEmail());
-        admin.setSenha(authRequest.getSenha());
-        admin.setRole("ADMIN");
-        admin.setCriadoEm(new Date());
-
-        return usuarioAdminService.save(admin)
-                .map(savedAdmin -> ResponseEntity.ok("Admin cadastrado com sucesso: " + savedAdmin.getEmail()))
-                .onErrorResume(e -> {
-                    e.printStackTrace();
-                    return Mono.just(ResponseEntity.badRequest().body("Erro: " + e.getMessage()));
-                });
+    public AuthController(
+            UsuarioAdminService usuarioAdminService,
+            AuthService authService
+    ) {
+        this.usuarioAdminService = usuarioAdminService;
+        this.authService = authService;
     }
 
+    // =====================================================
+    // REGISTRO TEMPORÁRIO (uso controlado / inicial)
+    // =====================================================
+    @Hidden
+    @PostMapping("/register-temp")
+    @Operation(summary = "Cadastra um administrador temporário")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Admin cadastrado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Erro no cadastro")
+    })
+    public Mono<ResponseEntity<String>> registerAdminTemp(
+            @RequestBody AuthRequest authRequest
+    ) {
+
+        UsuarioAdmin admin = new UsuarioAdmin();
+        admin.setEmail(authRequest.email());
+        admin.setSenha(authRequest.senha());
+        admin.setRole("ROLE_ADMIN");
+        admin.setCriadoEm(Instant.now());
+
+        return usuarioAdminService.save(admin)
+                .map(saved ->
+                        ResponseEntity
+                                .status(HttpStatus.CREATED)
+                                .body("Admin cadastrado com sucesso: " + saved.getEmail())
+                )
+                .onErrorResume(e ->
+                        Mono.just(
+                                ResponseEntity
+                                        .badRequest()
+                                        .body("Erro: " + e.getMessage())
+                        )
+                );
+    }
+
+    // =====================================================
+    // LOGIN ADMIN
+    // =====================================================
+    @PostMapping("/login")
     @Operation(summary = "Realiza login do administrador")
-    @ApiResponses(value = {
+    @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Login realizado com sucesso"),
             @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
     })
-    @PostMapping("/login")
-    public Mono<ResponseEntity<String>> login(@RequestBody AuthRequest authRequest) {
+    public Mono<ResponseEntity<Map<String, String>>> login(
+            @RequestBody AuthRequest authRequest
+    ) {
+
         return authService.authenticate(authRequest)
-                .map(token -> ResponseEntity.ok("{\"token\": \"" + token + "\"}"))
-                .onErrorResume(e -> Mono.just(ResponseEntity.status(401).body("Credenciais inválidas")));
+                .map(token ->
+                        ResponseEntity.ok(
+                                Map.of("token", token)
+                        )
+                )
+                .onErrorResume(e ->
+                        Mono.just(
+                                ResponseEntity
+                                        .status(HttpStatus.UNAUTHORIZED)
+                                        .body(Map.of("error", "Credenciais inválidas"))
+                        )
+                );
     }
 }

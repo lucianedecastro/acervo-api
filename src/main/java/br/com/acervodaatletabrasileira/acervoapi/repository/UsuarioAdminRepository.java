@@ -1,11 +1,11 @@
 package br.com.acervodaatletabrasileira.acervoapi.repository;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.UsuarioAdmin;
-import com.google.cloud.spring.data.firestore.FirestoreReactiveRepository; // CORRIGIDO!
-import org.springframework.stereotype.Repository;
+import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import reactor.core.publisher.Mono;
 
-@Repository
-public interface UsuarioAdminRepository extends FirestoreReactiveRepository<UsuarioAdmin> {
+public interface UsuarioAdminRepository
+        extends ReactiveMongoRepository<UsuarioAdmin, String> {
+
     Mono<UsuarioAdmin> findByEmail(String email);
 }

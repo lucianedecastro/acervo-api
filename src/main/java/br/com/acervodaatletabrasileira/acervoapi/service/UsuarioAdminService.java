@@ -2,45 +2,54 @@ package br.com.acervodaatletabrasileira.acervoapi.service;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.UsuarioAdmin;
 import br.com.acervodaatletabrasileira.acervoapi.repository.UsuarioAdminRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
-import java.util.Date;
+import java.time.Instant;
 
 @Service
 public class UsuarioAdminService {
 
-    @Autowired
-    private UsuarioAdminRepository repository;
+    private final UsuarioAdminRepository repository;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    public UsuarioAdminService(
+            UsuarioAdminRepository repository,
+            PasswordEncoder passwordEncoder
+    ) {
+        this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
-    // Salva um novo admin no Firestore
+    // ==========================
+    // CRIA / ATUALIZA ADMIN
+    // ==========================
     public Mono<UsuarioAdmin> save(UsuarioAdmin admin) {
-        // Garantir que o ID (email) esteja preenchido
-        if (admin.getEmail() == null || admin.getEmail().isEmpty()) {
-            return Mono.error(new IllegalArgumentException("O email do admin é obrigatório"));
+
+        if (admin.getEmail() == null || admin.getEmail().isBlank()) {
+            return Mono.error(
+                    new IllegalArgumentException("O email do admin é obrigatório")
+            );
         }
 
-        // CRIPTOGRAFAR a senha antes de salvar
-        if (admin.getSenha() != null && !admin.getSenha().startsWith("$2a$")) {
-            String senhaCriptografada = passwordEncoder.encode(admin.getSenha());
-            admin.setSenha(senhaCriptografada);
+        // Criptografa a senha somente se ainda não estiver criptografada
+        if (admin.getSenha() != null && !admin.getSenha().startsWith("$2")) {
+            admin.setSenha(passwordEncoder.encode(admin.getSenha()));
         }
 
-        // Preenche a data de criação se não estiver
+        // ✅ CORREÇÃO: usar Instant (alinhado ao model)
         if (admin.getCriadoEm() == null) {
-            admin.setCriadoEm(new Date());
+            admin.setCriadoEm(Instant.now());
         }
 
         return repository.save(admin);
     }
 
-    // Busca admin por email
+    // ==========================
+    // BUSCA POR EMAIL
+    // ==========================
     public Mono<UsuarioAdmin> findByEmail(String email) {
-        return repository.findById(email);
+        return repository.findByEmail(email);
     }
 }

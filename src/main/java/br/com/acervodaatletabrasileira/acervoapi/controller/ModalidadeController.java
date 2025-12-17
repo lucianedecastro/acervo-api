@@ -2,115 +2,90 @@ package br.com.acervodaatletabrasileira.acervoapi.controller;
 
 import br.com.acervodaatletabrasileira.acervoapi.dto.ModalidadeDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Modalidade;
-import br.com.acervodaatletabrasileira.acervoapi.service.CloudStorageService;
 import br.com.acervodaatletabrasileira.acervoapi.service.ModalidadeService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/modalidades")
-@Tag(name = "Modalidades", description = "Endpoints para gerenciamento de modalidades")
+@Tag(name = "Modalidades", description = "Endpoints públicos e administrativos das modalidades do acervo")
 public class ModalidadeController {
 
-    @Autowired
-    private ModalidadeService modalidadeService;
+    private final ModalidadeService modalidadeService;
 
-    @Autowired
-    private CloudStorageService storageService;
+    public ModalidadeController(ModalidadeService modalidadeService) {
+        this.modalidadeService = modalidadeService;
+    }
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    /* =====================================================
+       LEITURA PÚBLICA
+       ===================================================== */
 
-    // --- READ ---
     @Operation(summary = "Lista todas as modalidades")
     @GetMapping
-    public Flux<Modalidade> getAllModalidades() {
+    public Flux<Modalidade> listarTodas() {
         return modalidadeService.findAll();
     }
 
     @Operation(summary = "Busca uma modalidade pelo ID")
     @GetMapping("/{id}")
-    // ✅ CORREÇÃO: Especifica o nome do path variable para máxima clareza.
-    public Mono<ResponseEntity<Modalidade>> getModalidadeById(@PathVariable("id") String id) {
+    public Mono<ResponseEntity<Modalidade>> buscarPorId(
+            @PathVariable String id
+    ) {
         return modalidadeService.findById(id)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // --- CREATE ---
-    @Operation(summary = "Cria uma nova modalidade (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
-    @PostMapping(consumes = {"multipart/form-data"})
+    /* =====================================================
+       ADMIN – ESCRITA (JWT)
+       ===================================================== */
+
+    @Operation(
+            summary = "Cria uma nova modalidade",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Mono<Modalidade> createModalidade(
-            @RequestPart(value = "file", required = false) Mono<FilePart> filePartMono,
-            @RequestPart("dados") String dadosJson) {
+    public Mono<Modalidade> criar(
+            @RequestBody ModalidadeDTO dto
+    ) {
+        Modalidade modalidade = new Modalidade();
+        modalidade.setNome(dto.nome());
+        modalidade.setHistoria(dto.historia());
 
-        ModalidadeDTO dto;
-        try {
-            dto = objectMapper.readValue(dadosJson, ModalidadeDTO.class);
-        } catch (JsonProcessingException e) {
-            return Mono.error(new IllegalArgumentException("Formato de 'dados' inválido.", e));
-        }
-
-        return filePartMono
-                .flatMap(storageService::uploadFile)
-                .defaultIfEmpty("")
-                .flatMap(pictogramaUrl -> {
-                    Modalidade novaModalidade = new Modalidade();
-                    novaModalidade.setNome(dto.nome());
-                    novaModalidade.setHistoria(dto.historia());
-                    if (!pictogramaUrl.isBlank()) {
-                        novaModalidade.setPictogramaUrl(pictogramaUrl);
-                    }
-                    return modalidadeService.save(novaModalidade);
-                });
+        return modalidadeService.save(modalidade);
     }
 
-    // --- UPDATE ---
-    @Operation(summary = "Atualiza uma modalidade (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
-    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
-    public Mono<ResponseEntity<Modalidade>> updateModalidade(
-            @PathVariable("id") String id,
-            @RequestPart(value = "file", required = false) Mono<FilePart> filePartMono,
-            @RequestPart("dados") String dadosJson) {
-
-        // 1. Desserializa o JSON para DTO
-        ModalidadeDTO dto;
-        try {
-            dto = objectMapper.readValue(dadosJson, ModalidadeDTO.class);
-        } catch (JsonProcessingException e) {
-            return Mono.just(ResponseEntity.badRequest().build());
-        }
-
-                Mono<String> uploadMono = filePartMono
-                .flatMap(storageService::uploadFile)
-                .defaultIfEmpty("");
-
-        // 3. Chama o service para atualizar a modalidade
-        return uploadMono.flatMap(pictogramaUrl -> {
-           String urlParaAtualizar = pictogramaUrl.isBlank() ? null : pictogramaUrl;
-
-            return modalidadeService.update(id, dto, urlParaAtualizar)
-                    .map(ResponseEntity::ok);
-        }).defaultIfEmpty(ResponseEntity.notFound().build());
+    @Operation(
+            summary = "Atualiza uma modalidade existente",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PutMapping("/{id}")
+    public Mono<ResponseEntity<Modalidade>> atualizar(
+            @PathVariable String id,
+            @RequestBody ModalidadeDTO dto
+    ) {
+        return modalidadeService.update(id, dto)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    // --- DELETE ---
-    @Operation(summary = "Deleta uma modalidade (Requer Autenticação)", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(
+            summary = "Remove uma modalidade",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    // ✅ CORREÇÃO: Especifica o nome do path variable.
-    public Mono<Void> deleteModalidade(@PathVariable("id") String id) {
+    public Mono<Void> remover(
+            @PathVariable String id
+    ) {
         return modalidadeService.deleteById(id);
     }
 }

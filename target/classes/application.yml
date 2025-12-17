@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: acervo-api
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:prod}
+
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+      database: acervo
+
+server:
+  port: ${PORT:8080}
+
+# ==========================
+# JWT
+# ==========================
+jwt:
+  secret: ${JWT_SECRET:DEFAULT-JWT-SECRET-FALLBACK-999}
+  expiration: ${JWT_EXPIRATION:86400} # em segundos (24h)
+
+# ==========================
+# Cloudinary
+# ==========================
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
+
+# ==========================
+# CORS
+# ==========================
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://acervodaatletabrasileira.com.br}
+  allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  allowed-headers: Authorization,Content-Type
+  allow-credentials: true
+
+# ==========================
+# LOGGING (ajuda na migration)
+# ==========================
+logging:
+  level:
+    org.springframework.security: INFO
+    org.springframework.data.mongodb.core.ReactiveMongoTemplate: INFO

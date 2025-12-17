@@ -1,13 +1,19 @@
 package br.com.acervodaatletabrasileira.acervoapi.dto;
 
-// Este record representa os metadados de cada foto enviados pelo frontend.
-// O 'id' pode ser o UUID de uma foto existente ou um ID temporário do frontend.
-// O 'filename' é usado para associar este DTO ao arquivo de upload correspondente.
+/**
+ * Representa os metadados de uma foto do acervo.
+ *
+ * - id: identificador da foto (opcional, só existe após persistência)
+ * - legenda: texto descritivo da imagem
+ * - ehDestaque: indica se a foto é principal
+ * - url: URL pública da imagem (Cloudinary, S3, etc.)
+ * - filename: nome do arquivo enviado no upload (multipart)
+ */
 public record FotoDTO(
-        String id,
+        String id,          // pode ser null
         String legenda,
-        boolean ehDestaque,
-        String url,       // Presente apenas para fotos já existentes
-        String filename   // Usado para mapear com os novos arquivos
+        Boolean ehDestaque, // Boolean (não boolean)
+        String url,
+        String filename
 ) {
 }

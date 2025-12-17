@@ -25,7 +25,9 @@ public class SecurityConfig {
         this.jwtAuthFilter = jwtAuthFilter;
     }
 
-    // ✅ SWAGGER_WHITELIST: Rotas de documentação liberadas
+    // ==========================
+    // Swagger / OpenAPI
+    // ==========================
     private static final String[] SWAGGER_WHITELIST = {
             "/v3/api-docs/**",
             "/swagger-ui.html",
@@ -35,44 +37,86 @@ public class SecurityConfig {
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .authorizeExchange(exchanges -> exchanges
-                        // Regras de Pre-flight e Login
-                        .pathMatchers(HttpMethod.OPTIONS).permitAll()
-                        .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
-                        .pathMatchers(SWAGGER_WHITELIST).permitAll() //
 
-                        // ✅ Torna a LEITURA de modalidades e conteúdos pública
+        http
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                .authorizeExchange(exchanges -> exchanges
+
+                        // ==========================
+                        // Preflight
+                        // ==========================
+                        .pathMatchers(HttpMethod.OPTIONS).permitAll()
+
+                        // ==========================
+                        // Login Admin (JWT)
+                        // ==========================
+                        .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
+
+                        // ==========================
+                        // Swagger liberado
+                        // ==========================
+                        .pathMatchers(SWAGGER_WHITELIST).permitAll()
+
+                        // ==========================
+                        // ROTAS PÚBLICAS (CONSULTA)
+                        // ==========================
                         .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
                         .pathMatchers(HttpMethod.GET, "/modalidades/**").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/acervo/**").permitAll()
 
-
-                        // Regras Protegidas (qualquer outra ação exige autenticação)
-                        .pathMatchers("/atletas/**").authenticated()
-                        .pathMatchers("/modalidades/**").authenticated()
+                        // ==========================
+                        // ROTAS PROTEGIDAS (ADMIN)
+                        // ==========================
                         .pathMatchers("/admin/**").authenticated()
+                        .pathMatchers(HttpMethod.POST, "/atletas/**").authenticated()
+                        .pathMatchers(HttpMethod.PUT, "/atletas/**").authenticated()
+                        .pathMatchers(HttpMethod.DELETE, "/atletas/**").authenticated()
 
+                        .pathMatchers(HttpMethod.POST, "/modalidades/**").authenticated()
+                        .pathMatchers(HttpMethod.PUT, "/modalidades/**").authenticated()
+                        .pathMatchers(HttpMethod.DELETE, "/modalidades/**").authenticated()
+
+                        .pathMatchers("/acervo/**").authenticated()
+
+                        // ==========================
+                        // Fallback
+                        // ==========================
                         .anyExchange().authenticated()
                 )
+
                 .addFilterBefore(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION);
 
         return http.build();
     }
 
+    // ==========================
+    // CORS
+    // ==========================
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173", "https://acervo-front-one.vercel.app", "https://www.acervodaatletabrasileira.com.br"));
+        config.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "https://acervo-front-one.vercel.app",
+                "https://www.acervodaatletabrasileira.com.br"
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
+
         return source;
     }
 
+    // ==========================
+    // Password Encoder
+    // ==========================
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
