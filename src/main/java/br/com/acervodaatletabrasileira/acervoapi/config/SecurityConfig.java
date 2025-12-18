@@ -1,5 +1,6 @@
 package br.com.acervodaatletabrasileira.acervoapi.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -20,6 +21,9 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+
+    @Value("${app.admin.register-enabled:false}")
+    private boolean adminRegisterEnabled;
 
     public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
@@ -42,54 +46,60 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                .authorizeExchange(exchanges -> exchanges
+                .authorizeExchange(exchanges -> {
 
-                        // ==========================
-                        // Preflight
-                        // ==========================
-                        .pathMatchers(HttpMethod.OPTIONS).permitAll()
+                    // ==========================
+                    // Preflight
+                    // ==========================
+                    exchanges.pathMatchers(HttpMethod.OPTIONS).permitAll();
 
-                        // ==========================
-                        // REGISTRO TEMPORÁRIO ADMIN (SEED INICIAL)
-                        // ==========================
-                        .pathMatchers(HttpMethod.POST, "/admin/register-temp").permitAll()
+                    // ==========================
+                    // REGISTRO TEMPORÁRIO ADMIN (SEED)
+                    // ==========================
+                    if (adminRegisterEnabled) {
+                        exchanges.pathMatchers(
+                                HttpMethod.POST,
+                                "/admin/register-temp"
+                        ).permitAll();
+                    }
 
-                        // ==========================
-                        // Login Admin (JWT)
-                        // ==========================
-                        .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
+                    // ==========================
+                    // Login Admin (JWT)
+                    // ==========================
+                    exchanges.pathMatchers(HttpMethod.POST, "/admin/login").permitAll();
 
-                        // ==========================
-                        // Swagger liberado
-                        // ==========================
-                        .pathMatchers(SWAGGER_WHITELIST).permitAll()
+                    // ==========================
+                    // Swagger liberado
+                    // ==========================
+                    exchanges.pathMatchers(SWAGGER_WHITELIST).permitAll();
 
-                        // ==========================
-                        // ROTAS PÚBLICAS (CONSULTA)
-                        // ==========================
-                        .pathMatchers(HttpMethod.GET, "/atletas/**").permitAll()
-                        .pathMatchers(HttpMethod.GET, "/modalidades/**").permitAll()
-                        .pathMatchers(HttpMethod.GET, "/acervo/**").permitAll()
+                    // ==========================
+                    // ROTAS PÚBLICAS
+                    // ==========================
+                    exchanges.pathMatchers(HttpMethod.GET, "/atletas/**").permitAll();
+                    exchanges.pathMatchers(HttpMethod.GET, "/modalidades/**").permitAll();
+                    exchanges.pathMatchers(HttpMethod.GET, "/acervo/**").permitAll();
 
-                        // ==========================
-                        // ROTAS PROTEGIDAS (ADMIN)
-                        // ==========================
-                        .pathMatchers("/admin/**").authenticated()
-                        .pathMatchers(HttpMethod.POST, "/atletas/**").authenticated()
-                        .pathMatchers(HttpMethod.PUT, "/atletas/**").authenticated()
-                        .pathMatchers(HttpMethod.DELETE, "/atletas/**").authenticated()
+                    // ==========================
+                    // ROTAS PROTEGIDAS (ADMIN)
+                    // ==========================
+                    exchanges.pathMatchers("/admin/**").authenticated();
 
-                        .pathMatchers(HttpMethod.POST, "/modalidades/**").authenticated()
-                        .pathMatchers(HttpMethod.PUT, "/modalidades/**").authenticated()
-                        .pathMatchers(HttpMethod.DELETE, "/modalidades/**").authenticated()
+                    exchanges.pathMatchers(HttpMethod.POST, "/atletas/**").authenticated();
+                    exchanges.pathMatchers(HttpMethod.PUT, "/atletas/**").authenticated();
+                    exchanges.pathMatchers(HttpMethod.DELETE, "/atletas/**").authenticated();
 
-                        .pathMatchers("/acervo/**").authenticated()
+                    exchanges.pathMatchers(HttpMethod.POST, "/modalidades/**").authenticated();
+                    exchanges.pathMatchers(HttpMethod.PUT, "/modalidades/**").authenticated();
+                    exchanges.pathMatchers(HttpMethod.DELETE, "/modalidades/**").authenticated();
 
-                        // ==========================
-                        // Fallback
-                        // ==========================
-                        .anyExchange().authenticated()
-                )
+                    exchanges.pathMatchers("/acervo/**").authenticated();
+
+                    // ==========================
+                    // Fallback
+                    // ==========================
+                    exchanges.anyExchange().authenticated();
+                })
 
                 .addFilterBefore(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION);
 
