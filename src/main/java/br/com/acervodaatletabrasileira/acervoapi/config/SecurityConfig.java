@@ -50,6 +50,11 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.OPTIONS).permitAll()
 
                         // ==========================
+                        // REGISTRO TEMPORÁRIO ADMIN (SEED INICIAL)
+                        // ==========================
+                        .pathMatchers(HttpMethod.POST, "/admin/register-temp").permitAll()
+
+                        // ==========================
                         // Login Admin (JWT)
                         // ==========================
                         .pathMatchers(HttpMethod.POST, "/admin/login").permitAll()
