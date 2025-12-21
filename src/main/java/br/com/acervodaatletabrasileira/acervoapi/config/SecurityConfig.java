@@ -29,9 +29,6 @@ public class SecurityConfig {
         this.jwtAuthFilter = jwtAuthFilter;
     }
 
-    // ==========================
-    // Swagger / OpenAPI
-    // ==========================
     private static final String[] SWAGGER_WHITELIST = {
             "/v3/api-docs/**",
             "/swagger-ui.html",
@@ -49,12 +46,17 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> {
 
                     // ==========================
-                    // Preflight
+                    // Preflight (CORS)
                     // ==========================
-                    exchanges.pathMatchers(HttpMethod.OPTIONS).permitAll();
+                    exchanges.pathMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
                     // ==========================
-                    // REGISTRO TEMPORÁRIO ADMIN (SEED)
+                    // Login Admin
+                    // ==========================
+                    exchanges.pathMatchers(HttpMethod.POST, "/admin/login").permitAll();
+
+                    // ==========================
+                    // Seed admin (controlado por flag)
                     // ==========================
                     if (adminRegisterEnabled) {
                         exchanges.pathMatchers(
@@ -64,36 +66,29 @@ public class SecurityConfig {
                     }
 
                     // ==========================
-                    // Login Admin (JWT)
-                    // ==========================
-                    exchanges.pathMatchers(HttpMethod.POST, "/admin/login").permitAll();
-
-                    // ==========================
-                    // Swagger liberado
+                    // Swagger / OpenAPI
                     // ==========================
                     exchanges.pathMatchers(SWAGGER_WHITELIST).permitAll();
 
                     // ==========================
-                    // ROTAS PÚBLICAS
+                    // ROTAS PÚBLICAS (LEITURA)
                     // ==========================
-                    exchanges.pathMatchers(HttpMethod.GET, "/atletas/**").permitAll();
                     exchanges.pathMatchers(HttpMethod.GET, "/modalidades/**").permitAll();
+                    exchanges.pathMatchers(HttpMethod.GET, "/atletas/**").permitAll();
                     exchanges.pathMatchers(HttpMethod.GET, "/acervo/**").permitAll();
 
                     // ==========================
-                    // ROTAS PROTEGIDAS (ADMIN)
+                    // ROTAS ADMIN / ESCRITA
                     // ==========================
                     exchanges.pathMatchers("/admin/**").authenticated();
-
-                    exchanges.pathMatchers(HttpMethod.POST, "/atletas/**").authenticated();
-                    exchanges.pathMatchers(HttpMethod.PUT, "/atletas/**").authenticated();
-                    exchanges.pathMatchers(HttpMethod.DELETE, "/atletas/**").authenticated();
 
                     exchanges.pathMatchers(HttpMethod.POST, "/modalidades/**").authenticated();
                     exchanges.pathMatchers(HttpMethod.PUT, "/modalidades/**").authenticated();
                     exchanges.pathMatchers(HttpMethod.DELETE, "/modalidades/**").authenticated();
 
-                    exchanges.pathMatchers("/acervo/**").authenticated();
+                    exchanges.pathMatchers(HttpMethod.POST, "/atletas/**").authenticated();
+                    exchanges.pathMatchers(HttpMethod.PUT, "/atletas/**").authenticated();
+                    exchanges.pathMatchers(HttpMethod.DELETE, "/atletas/**").authenticated();
 
                     // ==========================
                     // Fallback
@@ -101,7 +96,8 @@ public class SecurityConfig {
                     exchanges.anyExchange().authenticated();
                 })
 
-                .addFilterBefore(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION);
+                // 🔑 JWT FILTER NO PONTO CORRETO
+                .addFilterAt(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION);
 
         return http.build();
     }
