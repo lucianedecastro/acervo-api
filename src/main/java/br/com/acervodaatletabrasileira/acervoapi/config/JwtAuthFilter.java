@@ -33,7 +33,7 @@ public class JwtAuthFilter implements WebFilter {
                 exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
         // ==========================
-        // Rotas públicas seguem sem token
+        // Sem token → segue fluxo (rotas públicas)
         // ==========================
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return chain.filter(exchange);
@@ -44,27 +44,28 @@ public class JwtAuthFilter implements WebFilter {
         return Mono.fromCallable(() -> jwtService.extractUsername(jwt))
                 .flatMap(username ->
                         userDetailsService.findByUsername(username)
-                                .flatMap(userDetails -> {
-                                    if (jwtService.validateToken(jwt, userDetails)) {
-
-                                        UsernamePasswordAuthenticationToken authentication =
-                                                new UsernamePasswordAuthenticationToken(
-                                                        userDetails,
-                                                        null,
-                                                        userDetails.getAuthorities()
-                                                );
-
-                                        return chain.filter(exchange)
-                                                .contextWrite(
-                                                        ReactiveSecurityContextHolder
-                                                                .withAuthentication(authentication)
-                                                );
-                                    }
-
-                                    return unauthorized(exchange);
-                                })
-                                .switchIfEmpty(unauthorized(exchange))
                 )
+                .flatMap(userDetails -> {
+
+                    if (!jwtService.validateToken(jwt, userDetails)) {
+                        return unauthorized(exchange);
+                    }
+
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+
+                    // ✅ PONTO-CHAVE: contexto escrito ANTES da chain
+                    return chain
+                            .filter(exchange)
+                            .contextWrite(
+                                    ReactiveSecurityContextHolder
+                                            .withAuthentication(authentication)
+                            );
+                })
                 .onErrorResume(ex -> unauthorized(exchange));
     }
 
