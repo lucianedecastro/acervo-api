@@ -25,8 +25,15 @@ public class Modalidade {
     private String nome;
 
     /**
+     * Slug da modalidade
+     * (ex: futebol, atletismo, ginastica)
+     * Usado para URLs amigáveis e SEO
+     */
+    private String slug;
+
+    /**
      * Ícone ou pictograma representativo da modalidade
-     * (URL pública – pode ser Cloudinary futuramente)
+     * (URL pública – Cloudinary no futuro)
      */
     private String pictogramaUrl;
 
@@ -47,7 +54,18 @@ public class Modalidade {
     private String fotoDestaqueId;
 
     /**
+     * Indica se a modalidade está ativa no acervo público
+     * Permite curadoria sem exclusão
+     */
+    private Boolean ativa;
+
+    /**
      * Data de criação do registro no acervo
      */
     private Instant criadoEm;
+
+    /**
+     * Data da última atualização do registro
+     */
+    private Instant atualizadoEm;
 }

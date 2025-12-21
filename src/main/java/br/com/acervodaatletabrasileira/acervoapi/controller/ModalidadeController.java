@@ -27,13 +27,13 @@ public class ModalidadeController {
        LEITURA PÚBLICA
        ===================================================== */
 
-    @Operation(summary = "Lista todas as modalidades")
+    @Operation(summary = "Lista todas as modalidades ativas")
     @GetMapping
     public Flux<Modalidade> listarTodas() {
         return modalidadeService.findAll();
     }
 
-    @Operation(summary = "Busca uma modalidade pelo ID")
+    @Operation(summary = "Busca uma modalidade ativa pelo ID")
     @GetMapping("/{id}")
     public Mono<ResponseEntity<Modalidade>> buscarPorId(
             @PathVariable String id
@@ -56,11 +56,7 @@ public class ModalidadeController {
     public Mono<Modalidade> criar(
             @RequestBody ModalidadeDTO dto
     ) {
-        Modalidade modalidade = new Modalidade();
-        modalidade.setNome(dto.nome());
-        modalidade.setHistoria(dto.historia());
-
-        return modalidadeService.save(modalidade);
+        return modalidadeService.create(dto);
     }
 
     @Operation(
@@ -74,7 +70,10 @@ public class ModalidadeController {
     ) {
         return modalidadeService.update(id, dto)
                 .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+                .onErrorResume(
+                        IllegalArgumentException.class,
+                        e -> Mono.just(ResponseEntity.notFound().build())
+                );
     }
 
     @Operation(

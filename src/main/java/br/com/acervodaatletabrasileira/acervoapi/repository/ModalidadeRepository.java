@@ -10,8 +10,8 @@ public interface ModalidadeRepository
         extends ReactiveMongoRepository<Modalidade, String> {
 
     /**
-     * Busca modalidades pelo nome (case-insensitive),
-     * útil para filtros públicos e curadoria do acervo.
+     * Busca modalidades pelo nome (case-insensitive).
+     * Usado para filtros públicos e curadoria do acervo.
      */
     Flux<Modalidade> findByNomeContainingIgnoreCase(String nome);
 }
