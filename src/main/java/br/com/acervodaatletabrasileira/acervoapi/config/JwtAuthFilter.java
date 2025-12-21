@@ -2,7 +2,6 @@ package br.com.acervodaatletabrasileira.acervoapi.config;
 
 import br.com.acervodaatletabrasileira.acervoapi.service.JwtService;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
@@ -29,48 +28,42 @@ public class JwtAuthFilter implements WebFilter {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
 
-        String authHeader =
-                exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        String authHeader = exchange.getRequest()
+                .getHeaders()
+                .getFirst(HttpHeaders.AUTHORIZATION);
 
-        // ==========================
-        // Sem token → segue fluxo (rotas públicas)
-        // ==========================
+        // 🔓 Sem header ou sem Bearer → segue como request pública
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return chain.filter(exchange);
         }
 
         String jwt = authHeader.substring(7);
 
-        return Mono.fromCallable(() -> jwtService.extractUsername(jwt))
+        return Mono.justOrEmpty(jwtService.extractUsername(jwt))
                 .flatMap(username ->
                         userDetailsService.findByUsername(username)
+                                .filter(userDetails ->
+                                        jwtService.validateToken(jwt, userDetails)
+                                )
+                                .flatMap(userDetails -> {
+
+                                    UsernamePasswordAuthenticationToken authentication =
+                                            new UsernamePasswordAuthenticationToken(
+                                                    userDetails,
+                                                    null,
+                                                    userDetails.getAuthorities()
+                                            );
+
+                                    // ✅ Injeta autenticação e deixa o fluxo seguir
+                                    return chain.filter(exchange)
+                                            .contextWrite(
+                                                    ReactiveSecurityContextHolder
+                                                            .withAuthentication(authentication)
+                                            );
+                                })
                 )
-                .flatMap(userDetails -> {
-
-                    if (!jwtService.validateToken(jwt, userDetails)) {
-                        return unauthorized(exchange);
-                    }
-
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    userDetails.getAuthorities()
-                            );
-
-                    // ✅ PONTO-CHAVE: contexto escrito ANTES da chain
-                    return chain
-                            .filter(exchange)
-                            .contextWrite(
-                                    ReactiveSecurityContextHolder
-                                            .withAuthentication(authentication)
-                            );
-                })
-                .onErrorResume(ex -> unauthorized(exchange));
-    }
-
-    private Mono<Void> unauthorized(ServerWebExchange exchange) {
-        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-        return exchange.getResponse().setComplete();
+                // ❗ Se qualquer etapa falhar, NÃO bloqueia aqui
+                // Quem decide acesso é o SecurityConfig
+                .switchIfEmpty(chain.filter(exchange));
     }
 }
