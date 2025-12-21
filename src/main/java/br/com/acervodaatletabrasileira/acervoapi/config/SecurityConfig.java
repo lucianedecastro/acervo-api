@@ -97,7 +97,7 @@ public class SecurityConfig {
                 })
 
                 // 🔑 JWT FILTER NO PONTO CORRETO
-                .addFilterAt(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION);
+                .addFilterAt(jwtAuthFilter, SecurityWebFiltersOrder.AUTHORIZATION);
 
         return http.build();
     }
