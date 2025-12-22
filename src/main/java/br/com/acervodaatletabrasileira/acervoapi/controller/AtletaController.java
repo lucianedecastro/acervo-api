@@ -75,7 +75,7 @@ public class AtletaController {
     )
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<Void> remover(@PathVariable String id) {
+    public Mono<Void> remover(@PathVariable("id") String id) {
         return atletaService.deleteById(id);
     }
 }
