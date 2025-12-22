@@ -10,7 +10,6 @@ C:\Users\Luciane\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervo
 C:\Users\Luciane\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\service\JwtService.java
 C:\Users\Luciane\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\controller\AuthController.java
 C:\Users\Luciane\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\service\ItemAcervoService.java
-C:\Users\Luciane\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\config\JacksonConfig.java
 C:\Users\Luciane\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\dto\ItemAcervoCreateDTO.java
 C:\Users\Luciane\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\model\StatusItemAcervo.java
 C:\Users\Luciane\acervo-api\src\main\java\br\com\acervodaatletabrasileira\acervoapi\service\UsuarioAdminService.java
