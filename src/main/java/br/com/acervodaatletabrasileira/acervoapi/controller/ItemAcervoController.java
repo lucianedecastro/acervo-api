@@ -159,6 +159,23 @@ public class ItemAcervoController {
        ===================================================== */
 
     @Operation(
+            summary = "Upload avulso de imagem",
+            description = "Realiza o upload de uma imagem para o Cloudinary e retorna os dados da foto sem vincular a um item específico ainda.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PostMapping(
+            value = "/upload",
+            consumes = "multipart/form-data"
+    )
+    public Mono<ResponseEntity<FotoDTO>> uploadAvulso(
+            @RequestPart("file") FilePart file
+    ) {
+        // Assume que seu service tem um método para upload puro no Cloudinary
+        return service.uploadCloudinaryPuro(file)
+                .map(ResponseEntity::ok);
+    }
+
+    @Operation(
             summary = "Upload de foto para um item do acervo",
             description = """
                     Realiza o upload de uma imagem e associa ao item do acervo.

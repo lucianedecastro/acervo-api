@@ -131,6 +131,21 @@ public class ItemAcervoService {
        UPLOAD DE FOTO (ADMIN)
        ===================================================== */
 
+    /**
+     * Realiza o upload apenas no Cloudinary, sem salvar no banco de dados.
+     * Útil para o formulário de Atletas no Frontend.
+     */
+    public Mono<FotoDTO> uploadCloudinaryPuro(FilePart file) {
+        return cloudinaryService.uploadImagem(file, "atletas")
+                .map(result -> new FotoDTO(
+                        UUID.randomUUID().toString(),
+                        "Upload Avulso",
+                        false,
+                        result.get("url"),
+                        null
+                ));
+    }
+
     public Mono<FotoDTO> adicionarFoto(
             String itemId,
             FilePart file,
