@@ -57,7 +57,7 @@ public class JwtAuthFilter implements WebFilter {
                         // ✅ Alteração: Injetamos o contexto garantindo a persistência da auth
                         // mesmo em fluxos de retorno vazio (como o DELETE)
                         return chain.filter(exchange)
-                                .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
+                                .contextWrite(context ->ReactiveSecurityContextHolder.withAuthentication(authentication));
                     }
                     return chain.filter(exchange);
                 })
