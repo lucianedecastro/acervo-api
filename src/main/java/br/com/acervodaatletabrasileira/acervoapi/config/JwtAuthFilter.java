@@ -38,32 +38,31 @@ public class JwtAuthFilter implements WebFilter {
         }
 
         String jwt = authHeader.substring(7);
+        String username = jwtService.extractUsername(jwt);
 
-        return Mono.justOrEmpty(jwtService.extractUsername(jwt))
-                .flatMap(username ->
-                        userDetailsService.findByUsername(username)
-                                .filter(userDetails ->
-                                        jwtService.validateToken(jwt, userDetails)
-                                )
-                                .flatMap(userDetails -> {
+        if (username == null) {
+            return chain.filter(exchange);
+        }
 
-                                    UsernamePasswordAuthenticationToken authentication =
-                                            new UsernamePasswordAuthenticationToken(
-                                                    userDetails,
-                                                    null,
-                                                    userDetails.getAuthorities()
-                                            );
+        return userDetailsService.findByUsername(username)
+                .flatMap(userDetails -> {
+                    if (jwtService.validateToken(jwt, userDetails)) {
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        userDetails.getAuthorities()
+                                );
 
-                                    // ✅ Injeta autenticação e deixa o fluxo seguir
-                                    return chain.filter(exchange)
-                                            .contextWrite(
-                                                    ReactiveSecurityContextHolder
-                                                            .withAuthentication(authentication)
-                                            );
-                                })
-                )
-                // ❗ Se qualquer etapa falhar, NÃO bloqueia aqui
-                // Quem decide acesso é o SecurityConfig
-                .switchIfEmpty(chain.filter(exchange));
+                        // ✅ Alteração: Injetamos o contexto garantindo a persistência da auth
+                        // mesmo em fluxos de retorno vazio (como o DELETE)
+                        return chain.filter(exchange)
+                                .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
+                    }
+                    return chain.filter(exchange);
+                })
+                // ❗ Se o usuário não for encontrado ou o fluxo esvaziar,
+                // garantimos que a chain continue sem interromper a resposta.
+                .switchIfEmpty(Mono.defer(() -> chain.filter(exchange)));
     }
 }
