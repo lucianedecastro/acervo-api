@@ -1,0 +1,39 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  # 1. Empacotar o Spring Boot em um JAR
+  - name: 'maven:3.9.9-eclipse-temurin-17'
+    entrypoint: 'mvn'
+    args: ['clean', 'package', '-DskipTests']
+
+  # 2. Construir a Imagem do Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t',
+      'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA',
+      '.'
+    ]
+
+  # 3. Enviar a Imagem para o Google Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA']
+
+  # 4. Implantar a nova Imagem no Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: [
+      'run',
+      'deploy',
+      'acervo-api',
+      '--image',
+      'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA',
+      '--region',
+      'southamerica-east1',
+      '--platform',
+      'managed',
+      '--allow-unauthenticated'
+    ]
+
+images:
+  - 'gcr.io/$PROJECT_ID/acervo-api:$COMMIT_SHA'
