@@ -9,7 +9,7 @@ import java.util.List;
 
 /**
  * DTO de resposta pública.
- * Focado na visualização histórica e no estímulo ao licenciamento.
+ * Exibe se o item é um registro histórico ou um ativo disponível para licenciamento.
  */
 public record ItemAcervoResponseDTO(
         String id,
@@ -17,20 +17,23 @@ public record ItemAcervoResponseDTO(
         String descricao,
         String local,
         String dataOriginal,
-        String procedencia, // Ex: "Acervo Pessoal de Luciane Castro"
+        String procedencia,
 
         TipoItemAcervo tipo,
         StatusItemAcervo status,
 
         /**
-         * Informações para o interessado em licenciar o conteúdo
+         * Informações de Licenciamento
          */
         BigDecimal precoBaseLicenciamento,
         Boolean disponivelParaLicenciamento,
 
+        // Novo: Para o frontend decidir o layout (Pesquisa vs. Compra)
+        Boolean itemHistorico,
+
         String modalidadeId,
         List<String> atletasIds,
-        List<FotoDTO> fotos, // Aqui o Service deve garantir que sejam as URLs de visualização
+        List<FotoDTO> fotos,
 
         Instant criadoEm,
         Instant atualizadoEm

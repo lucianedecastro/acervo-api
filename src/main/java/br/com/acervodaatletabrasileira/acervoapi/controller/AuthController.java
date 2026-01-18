@@ -18,8 +18,8 @@ import java.time.Instant;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/admin")
-@Tag(name = "Autenticação", description = "Endpoints de autenticação de administradores")
+@RequestMapping("/admin") // Mantido o prefixo para consistência com o SecurityConfig
+@Tag(name = "Autenticação", description = "Endpoints de acesso ao ecossistema (Admin e Atletas)")
 public class AuthController {
 
     private final UsuarioAdminService usuarioAdminService;
@@ -34,7 +34,7 @@ public class AuthController {
     }
 
     // =====================================================
-    // REGISTRO TEMPORÁRIO (uso controlado / inicial)
+    // REGISTRO TEMPORÁRIO (Escondido do Swagger via @Hidden)
     // =====================================================
     @Hidden
     @PostMapping("/register-temp")
@@ -43,10 +43,9 @@ public class AuthController {
             @ApiResponse(responseCode = "201", description = "Admin cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Erro no cadastro")
     })
-    public Mono<ResponseEntity<String>> registerAdminTemp(
+    public Mono<ResponseEntity<Map<String, String>>> registerAdminTemp(
             @RequestBody AuthRequest authRequest
     ) {
-
         UsuarioAdmin admin = new UsuarioAdmin();
         admin.setEmail(authRequest.email());
         admin.setSenha(authRequest.senha());
@@ -54,45 +53,31 @@ public class AuthController {
         admin.setCriadoEm(Instant.now());
 
         return usuarioAdminService.save(admin)
-                .map(saved ->
-                        ResponseEntity
-                                .status(HttpStatus.CREATED)
-                                .body("Admin cadastrado com sucesso: " + saved.getEmail())
-                )
-                .onErrorResume(e ->
-                        Mono.just(
-                                ResponseEntity
-                                        .badRequest()
-                                        .body("Erro: " + e.getMessage())
-                        )
-                );
+                .map(saved -> ResponseEntity.status(HttpStatus.CREATED)
+                        .body(Map.of("message", "Admin cadastrado com sucesso", "email", saved.getEmail())))
+                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
+                        .body(Map.of("error", "Erro ao cadastrar: " + e.getMessage()))));
     }
 
     // =====================================================
-    // LOGIN ADMIN
+    // LOGIN UNIFICADO (Híbrido: Admin e Atletas)
     // =====================================================
     @PostMapping("/login")
-    @Operation(summary = "Realiza login do administrador")
+    @Operation(summary = "Realiza login unificado", description = "Aceita credenciais de Administradores e Atletas")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Login realizado com sucesso"),
-            @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
+            @ApiResponse(responseCode = "200", description = "Login realizado com sucesso (Retorna JWT)"),
+            @ApiResponse(responseCode = "401", description = "Credenciais inválidas ou usuário não encontrado")
     })
     public Mono<ResponseEntity<Map<String, String>>> login(
             @RequestBody AuthRequest authRequest
     ) {
-
         return authService.authenticate(authRequest)
-                .map(token ->
-                        ResponseEntity.ok(
-                                Map.of("token", token)
-                        )
-                )
-                .onErrorResume(e ->
-                        Mono.just(
-                                ResponseEntity
-                                        .status(HttpStatus.UNAUTHORIZED)
-                                        .body(Map.of("error", "Credenciais inválidas"))
-                        )
-                );
+                .map(token -> ResponseEntity.ok(Map.of(
+                        "token", token,
+                        "type", "Bearer",
+                        "expiresIn", "86400"
+                )))
+                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Credenciais inválidas ou usuário não encontrado"))));
     }
 }

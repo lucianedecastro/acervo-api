@@ -17,52 +17,54 @@ public class JwtAuthFilter implements WebFilter {
     private final JwtService jwtService;
     private final ReactiveUserDetailsService userDetailsService;
 
-    public JwtAuthFilter(
-            JwtService jwtService,
-            ReactiveUserDetailsService userDetailsService
-    ) {
+    public JwtAuthFilter(JwtService jwtService, ReactiveUserDetailsService userDetailsService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
-        String authHeader = exchange.getRequest()
-                .getHeaders()
-                .getFirst(HttpHeaders.AUTHORIZATION);
-
-        // 🔓 Sem header ou sem Bearer → segue como request pública
+        // 1. Verifica se o header está presente e no formato correto
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return chain.filter(exchange);
         }
 
         String jwt = authHeader.substring(7);
-        String username = jwtService.extractUsername(jwt);
+        String userIdentifier; // Pode ser Email (Admin) ou ID (Atleta)
 
-        if (username == null) {
+        try {
+            userIdentifier = jwtService.extractUsername(jwt);
+        } catch (Exception e) {
+            // Se o token estiver corrompido ou malformado, ignora
             return chain.filter(exchange);
         }
 
-        return userDetailsService.findByUsername(username)
-                .flatMap(userDetails -> {
-                    if (jwtService.validateToken(jwt, userDetails)) {
-                        UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(
-                                        userDetails,
-                                        null,
-                                        userDetails.getAuthorities()
-                                );
+        if (userIdentifier != null) {
+            // 2. Busca o usuário no banco (híbrido via UserDetailsServiceImpl)
+            return userDetailsService.findByUsername(userIdentifier)
+                    .flatMap(userDetails -> {
+                        // 3. Valida se o token não expirou e se o identifier confere
+                        if (jwtService.validateToken(jwt, userDetails)) {
 
-                        // ✅ Alteração: Injetamos o contexto garantindo a persistência da auth
-                        // mesmo em fluxos de retorno vazio (como o DELETE)
-                        return chain.filter(exchange)
-                                .contextWrite(context ->ReactiveSecurityContextHolder.withAuthentication(authentication));
-                    }
-                    return chain.filter(exchange);
-                })
-                // ❗ Se o usuário não for encontrado ou o fluxo esvaziar,
-                // garantimos que a chain continue sem interromper a resposta.
-                .switchIfEmpty(Mono.defer(() -> chain.filter(exchange)));
+                            UsernamePasswordAuthenticationToken authentication =
+                                    new UsernamePasswordAuthenticationToken(
+                                            userDetails,
+                                            null,
+                                            userDetails.getAuthorities()
+                                    );
+
+                            // 4. Injeta no Contexto Reativo e continua a filtragem
+                            return chain.filter(exchange)
+                                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
+                        }
+                        return chain.filter(exchange);
+                    })
+                    // Se o usuário do Token não existir mais no banco
+                    .switchIfEmpty(chain.filter(exchange));
+        }
+
+        return chain.filter(exchange);
     }
 }

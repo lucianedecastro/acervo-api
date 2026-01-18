@@ -49,9 +49,9 @@ public class Modalidade {
     private List<FotoAcervo> fotos;
 
     /**
-     * Identificador da foto de destaque da modalidade
+     * PublicId da foto de destaque (Cloudinary)
      */
-    private String fotoDestaqueId;
+    private String fotoDestaquePublicId;
 
     /**
      * Indica se a modalidade está ativa no acervo público

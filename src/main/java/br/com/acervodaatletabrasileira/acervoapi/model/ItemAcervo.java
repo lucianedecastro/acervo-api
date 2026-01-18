@@ -11,8 +11,8 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Representa um ativo do Acervo Digital Carmen Lydia.
- * Focado na gestão, preservação e licenciamento de acervos pessoais.
+ * Representa um ativo do Acervo da Atleta Brasileira.
+ * Gerencia tanto a preservação histórica quanto o licenciamento comercial.
  */
 @Data
 @NoArgsConstructor
@@ -29,48 +29,53 @@ public class ItemAcervo {
     private String titulo;
     private String descricao;
     private String local; // Onde o registro foi feito
-    private String dataOriginal; // Data histórica (ex: "Junho de 2004")
+    private String dataOriginal; // Data histórica (ex: "Junho de 2004" ou "Década de 1920")
 
     /**
-     * Procedência (Pilar Central da Nova Proposta)
-     * Identifica que o material pertence ao acervo privado da atleta.
+     * Procedência e Propriedade
      */
-    private String procedencia; // Ex: "Acervo Pessoal de [Nome da Atleta]"
-    private String fotografoDoador; // Créditos originais se conhecidos
+    private String procedencia; // Ex: "Acervo Pessoal de [Nome da Atleta]" ou "Domínio Público"
+    private String fotografoDoador; // Créditos originais
 
     /**
-     * Tipificação e Status
+     * Tipificação e Status de Curadoria
      */
-    private TipoItemAcervo tipo; // FOTO, VIDEO, DOCUMENTO, CREDENCIAL, RECORTE
-    private StatusItemAcervo status; // RASCUNHO, PUBLICADO, SOB_ANALISE_JURIDICA
+    private TipoItemAcervo tipo; // FOTO, VIDEO, DOCUMENTO, etc.
+    private StatusItemAcervo status; // RASCUNHO, PUBLICADO, SOB_ANALISE_JURIDICA, MEMORIAL
 
     /**
      * Relacionamentos
      */
     private String modalidadeId;
-    private List<String> atletasIds; // Atletas que aparecem ou são citadas no item
+    private List<String> atletasIds; // IDs das atletas vinculadas a este item
 
     /**
-     * Inteligência Financeira e Licenciamento
+     * Inteligência Financeira e Diferenciação de Frente
      */
+    private Boolean disponivelParaLicenciamento; // Se o item pode ser vendido
     private BigDecimal precoBaseLicenciamento; // Valor para uso comercial/editorial
-    private Boolean disponivelParaLicenciamento; // Se a atleta autorizou a circulação remunerada
+
+    // Indica se o item é parte da frente Histórica (Pesquisa) ou Ativa (Financeira)
+    private Boolean itemHistorico;
 
     /**
      * Regras de Uso Específicas
-     * Ex: "Apenas para fins acadêmicos", "Uso proibido em campanhas políticas"
      */
     private String restricoesUso;
 
     /**
-     * Arquivos Digitais (Cloudinary)
+     * Arquivos Digitais (Conexão com Cloudinary)
+     * Contém as URLs da imagem em baixa (preview) e alta (original)
      */
     private List<FotoAcervo> fotos;
 
     /**
-     * Auditoria e Curadoria
+     * Metadados para Split de Pagamento e Auditoria
+     * Guardamos o percentual da atleta no momento da publicação do item
      */
+    private BigDecimal percentualRepasseNoMomento;
+
     private Instant criadoEm;
     private Instant atualizadoEm;
-    private String curadorResponsavel; // Nome de quem catalogou o item
+    private String curadorResponsavel;
 }

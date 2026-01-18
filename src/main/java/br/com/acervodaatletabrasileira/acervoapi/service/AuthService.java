@@ -1,48 +1,42 @@
 package br.com.acervodaatletabrasileira.acervoapi.service;
 
 import br.com.acervodaatletabrasileira.acervoapi.dto.AuthRequest;
-import br.com.acervodaatletabrasileira.acervoapi.model.UsuarioAdmin;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.authentication.ReactiveAuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 @Service
 public class AuthService {
 
-    private final UsuarioAdminService usuarioAdminService;
-    private final PasswordEncoder passwordEncoder;
+    private final ReactiveAuthenticationManager authenticationManager;
     private final JwtService jwtService;
 
     public AuthService(
-            UsuarioAdminService usuarioAdminService,
-            PasswordEncoder passwordEncoder,
+            ReactiveAuthenticationManager authenticationManager,
             JwtService jwtService
     ) {
-        this.usuarioAdminService = usuarioAdminService;
-        this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
     }
 
-    // ==========================
-    // AUTENTICAÇÃO ADMIN
-    // ==========================
+    /**
+     * Autenticação Unificada:
+     * O AuthenticationManager utiliza o seu UserDetailsServiceImpl para buscar
+     * tanto na coleção de Admins quanto na de Atletas.
+     */
     public Mono<String> authenticate(AuthRequest authRequest) {
-
-        return usuarioAdminService.findByEmail(authRequest.email()) // ✅ record access
-                .switchIfEmpty(
-                        Mono.error(new RuntimeException("Usuário não encontrado"))
+        return authenticationManager.authenticate(
+                        new UsernamePasswordAuthenticationToken(
+                                authRequest.email(),
+                                authRequest.senha()
+                        )
                 )
-                .flatMap(admin -> validatePassword(authRequest, admin))
-                .map(jwtService::generateToken);
-    }
-
-    private Mono<UsuarioAdmin> validatePassword(
-            AuthRequest authRequest,
-            UsuarioAdmin admin
-    ) {
-        if (!passwordEncoder.matches(authRequest.senha(), admin.getSenha())) { // ✅ record access
-            return Mono.error(new RuntimeException("Credenciais inválidas"));
-        }
-        return Mono.just(admin);
+                .map(authentication -> {
+                    // Se chegou aqui, as credenciais (e-mail e senha) já foram validadas!
+                    // O objeto 'authentication' agora contém o Principal (Admin ou Atleta) e a Role.
+                    return jwtService.generateToken(authentication);
+                })
+                .onErrorResume(e -> Mono.error(new RuntimeException("Credenciais inválidas ou usuário não encontrado")));
     }
 }

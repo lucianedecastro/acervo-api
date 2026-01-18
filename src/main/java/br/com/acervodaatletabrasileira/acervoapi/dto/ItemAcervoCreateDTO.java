@@ -7,7 +7,8 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * DTO para criação/edição de itens com foco em acervos pessoais e licenciamento.
+ * DTO para criação/edição de itens.
+ * Inclui o marcador de item histórico para diferenciar pesquisa de marketplace.
  */
 public record ItemAcervoCreateDTO(
         String titulo,
@@ -29,6 +30,10 @@ public record ItemAcervoCreateDTO(
          */
         BigDecimal precoBaseLicenciamento,
         Boolean disponivelParaLicenciamento,
+
+        // Novo: Define se o item é apenas para o memorial/pesquisa
+        Boolean itemHistorico,
+
         String restricoesUso,
 
         String modalidadeId,

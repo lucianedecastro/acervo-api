@@ -35,16 +35,22 @@ public class ModalidadeController {
 
     @Operation(summary = "Busca uma modalidade ativa pelo ID")
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<Modalidade>> buscarPorId(
-            @PathVariable String id
-    ) {
+    public Mono<ResponseEntity<Modalidade>> buscarPorId(@PathVariable String id) {
         return modalidadeService.findById(id)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
+    @Operation(summary = "Busca uma modalidade ativa pelo Slug (URL Amigável)")
+    @GetMapping("/slug/{slug}")
+    public Mono<ResponseEntity<Modalidade>> buscarPorSlug(@PathVariable String slug) {
+        return modalidadeService.findBySlug(slug)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
     /* =====================================================
-       ADMIN – ESCRITA (JWT)
+       ADMIN – ESCRITA (JWT Requerido)
        ===================================================== */
 
     @Operation(
@@ -53,9 +59,7 @@ public class ModalidadeController {
     )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Mono<Modalidade> criar(
-            @RequestBody ModalidadeDTO dto
-    ) {
+    public Mono<Modalidade> criar(@RequestBody ModalidadeDTO dto) {
         return modalidadeService.create(dto);
     }
 
@@ -72,7 +76,7 @@ public class ModalidadeController {
                 .map(ResponseEntity::ok)
                 .onErrorResume(
                         IllegalArgumentException.class,
-                        e -> Mono.just(ResponseEntity.notFound().build())
+                        e -> Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build())
                 );
     }
 
@@ -82,9 +86,7 @@ public class ModalidadeController {
     )
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<Void> remover(
-            @PathVariable String id
-    ) {
+    public Mono<Void> remover(@PathVariable String id) {
         return modalidadeService.deleteById(id);
     }
 }
