@@ -24,7 +24,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebFluxSecurity
-@EnableReactiveMethodSecurity // Ativa a proteção por anotações como @PreAuthorize
+@EnableReactiveMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
@@ -43,10 +43,6 @@ public class SecurityConfig {
             "/webjars/**"
     };
 
-    /**
-     * Define o Gerenciador de Autenticação Reativo.
-     * Ele usa o seu UserDetailsServiceImpl (híbrido) e o BCrypt para validar as senhas.
-     */
     @Bean
     public ReactiveAuthenticationManager reactiveAuthenticationManager(
             UserDetailsServiceImpl userDetailsService,
@@ -59,76 +55,60 @@ public class SecurityConfig {
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
-
         http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((exchange, e) ->
                                 Mono.fromRunnable(() -> exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED)))
                         .accessDeniedHandler((exchange, e) ->
                                 Mono.fromRunnable(() -> exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN)))
                 )
-
                 .authorizeExchange(exchanges -> {
 
-                    // ==========================
-                    // Preflight (CORS)
-                    // ==========================
+                    // 1. Preflight (CORS)
                     exchanges.pathMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
-                    // ==========================
-                    // Login / Registro Livre (PORTA DE ENTRADA)
-                    // ==========================
+                    // 2. LOGIN (Sempre Livre)
+                    exchanges.pathMatchers(HttpMethod.POST, "/auth/login").permitAll();
                     exchanges.pathMatchers(HttpMethod.POST, "/admin/login").permitAll();
-                    exchanges.pathMatchers(HttpMethod.POST, "/atletas").permitAll(); // Cadastro de Atletas Livre
 
+                    // 3. CADASTRO DE ATLETAS (Sempre Livre)
+                    exchanges.pathMatchers(HttpMethod.POST, "/atletas").permitAll();
+
+                    // 4. REGISTROS ADMINISTRATIVOS (Protegidos por Flag de Ambiente)
                     if (adminRegisterEnabled) {
+                        exchanges.pathMatchers(HttpMethod.POST, "/auth/register-admin").permitAll();
+                        exchanges.pathMatchers(HttpMethod.POST, "/auth/register-temp").permitAll();
                         exchanges.pathMatchers(HttpMethod.POST, "/admin/register-temp").permitAll();
                     }
 
-                    // ==========================
-                    // Swagger / OpenAPI
-                    // ==========================
+                    // 5. DOCUMENTAÇÃO E CONSULTA PÚBLICA
                     exchanges.pathMatchers(SWAGGER_WHITELIST).permitAll();
-
-                    // ==========================
-                    // ROTAS PÚBLICAS (Frente de Pesquisa / GETs)
-                    // ==========================
                     exchanges.pathMatchers("/licenciamento/**").permitAll();
                     exchanges.pathMatchers(HttpMethod.GET, "/modalidades/**").permitAll();
                     exchanges.pathMatchers(HttpMethod.GET, "/atletas/**").permitAll();
                     exchanges.pathMatchers(HttpMethod.GET, "/acervo/**").permitAll();
 
-                    // ==========================
-                    // DASHBOARDS (Protegidos por Roles no Controller)
-                    // ==========================
+                    // 6. DASHBOARDS (Protegidos - Exige Token)
+                    exchanges.pathMatchers("/dashboard/**").authenticated();
                     exchanges.pathMatchers("/api/dashboard/**").authenticated();
 
-                    // ==========================
-                    // ROTAS DE GESTÃO (ATLETAS)
-                    // ==========================
+                    // 7. GESTÃO DE ATLETAS E ACERVO (Escrita)
                     exchanges.pathMatchers(HttpMethod.PUT, "/atletas/**").authenticated();
                     exchanges.pathMatchers(HttpMethod.PATCH, "/atletas/**").authenticated();
                     exchanges.pathMatchers(HttpMethod.DELETE, "/atletas/**").authenticated();
-
-                    // ==========================
-                    // ROTAS DE GESTÃO (ACERVO)
-                    // ==========================
                     exchanges.pathMatchers(HttpMethod.POST, "/acervo/**").authenticated();
                     exchanges.pathMatchers(HttpMethod.PUT, "/acervo/**").authenticated();
                     exchanges.pathMatchers(HttpMethod.DELETE, "/acervo/**").authenticated();
 
+                    // 8. ÁREA ADMINISTRATIVA
                     exchanges.pathMatchers("/admin/**").authenticated();
                     exchanges.pathMatchers("/modalidades/**").authenticated();
 
-                    // ==========================
-                    // Fallback
-                    // ==========================
+                    // 9. FALLBACK
                     exchanges.anyExchange().authenticated();
                 })
-
                 .addFilterAt(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION);
 
         return http.build();
@@ -148,7 +128,6 @@ public class SecurityConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
-
         return source;
     }
 

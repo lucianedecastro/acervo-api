@@ -21,34 +21,29 @@ public class UserDetailsServiceImpl implements ReactiveUserDetailsService {
 
     @Override
     public Mono<UserDetails> findByUsername(String identifier) {
-        // 1. Tenta buscar como ADMIN (sempre pelo e-mail)
+        // 1. Tenta buscar como ADMIN
         return adminRepository.findByEmail(identifier)
                 .map(admin -> User.builder()
                         .username(admin.getEmail())
                         .password(admin.getSenha())
                         .authorities("ROLE_ADMIN")
                         .build())
-                .switchIfEmpty(Mono.defer(() -> {
-                    // 2. Se não for admin, tenta buscar como ATLETA
-                    // O identificador pode ser o E-mail (no login) ou o ID (no JWT)
-
-                    if (identifier.contains("@")) {
-                        return atletaRepository.findByEmail(identifier)
-                                .map(atleta -> buildAtletaUserDetails(atleta));
-                    } else {
-                        return atletaRepository.findById(identifier)
-                                .map(atleta -> buildAtletaUserDetails(atleta));
-                    }
-                }));
+                .switchIfEmpty(Mono.defer(() -> buscarAtleta(identifier)));
     }
 
-    /**
-     * Centraliza a construção do UserDetails da Atleta para evitar repetição.
-     * Usamos o ID como username no UserDetails para que o JwtService o coloque no subject do token.
-     */
+    private Mono<UserDetails> buscarAtleta(String identifier) {
+        // Tenta buscar por e-mail ou por ID
+        Mono<br.com.acervodaatletabrasileira.acervoapi.model.Atleta> atletaMono = identifier.contains("@")
+                ? atletaRepository.findByEmail(identifier)
+                : atletaRepository.findById(identifier);
+
+        return atletaMono.map(this::buildAtletaUserDetails);
+    }
+
     private UserDetails buildAtletaUserDetails(br.com.acervodaatletabrasileira.acervoapi.model.Atleta atleta) {
+        // Recomendação: Use o e-mail como username para consistência nos Controllers
         return User.builder()
-                .username(atleta.getId())
+                .username(atleta.getEmail())
                 .password(atleta.getSenha())
                 .authorities("ROLE_ATLETA")
                 .build();

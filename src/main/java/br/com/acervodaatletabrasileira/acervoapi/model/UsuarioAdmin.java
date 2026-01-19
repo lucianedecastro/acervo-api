@@ -16,7 +16,7 @@ import java.time.Instant;
 public class UsuarioAdmin {
 
     @Id
-    private String id; // MongoDB _id
+    private String id;
 
     @Indexed(unique = true)
     private String email;
@@ -36,7 +36,8 @@ public class UsuarioAdmin {
     public UsuarioAdmin(String email, String senha, String role) {
         this.email = email;
         this.senha = senha;
-        this.role = role;
+        // Garante o prefixo ROLE_ caso venha apenas "ADMIN"
+        this.role = (role != null && !role.startsWith("ROLE_")) ? "ROLE_" + role : role;
         this.criadoEm = Instant.now();
     }
 }

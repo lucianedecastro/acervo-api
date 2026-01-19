@@ -22,7 +22,7 @@ public class Atleta {
     private String nomeSocial;
 
     @Indexed(unique = true)
-    private String slug; // Ex: maria-lenk (gerado automaticamente)
+    private String slug;
 
     @Indexed(unique = true)
     private String cpf;
@@ -30,16 +30,19 @@ public class Atleta {
     @Indexed(unique = true)
     private String email;
 
-    // --- Campo vital para o login (Necessário para UserDetailsServiceImpl) ---
     private String senha;
 
-    private List<String> modalidadesIds; // IDs das modalidades (Natação, etc)
+    /**
+     * Essencial para o Spring Security diferenciar as permissões.
+     * Para atletas, o valor padrão deve ser ROLE_ATLETA.
+     */
+    private String role = "ROLE_ATLETA";
+
+    private List<String> modalidadesIds;
     private String biografia;
 
-    // --- Diferenciação de Frente (Histórico vs Financeiro) ---
     private CategoriaAtleta categoria = CategoriaAtleta.ATIVA;
 
-    // --- Gestão de Contrato e Verificação ---
     private Boolean contratoAssinado = false;
     private String linkContratoDigital;
     private Instant dataAssinaturaContrato;
@@ -48,12 +51,10 @@ public class Atleta {
     private String observacoesAdmin;
     private Instant dataVerificacao;
 
-    // --- Representação Legal (Para Espólio ou Menores) ---
     private String nomeRepresentante;
     private String cpfRepresentante;
-    private String vinculoRepresentante; // Ex: Herdeiro, Mãe/Pai, Procurador
+    private String vinculoRepresentante;
 
-    // --- Pilares Financeiros Estruturados ---
     private String dadosContato;
     private TipoChavePix tipoChavePix;
     private String chavePix;
@@ -66,17 +67,15 @@ public class Atleta {
     private BigDecimal percentualRepasse;
     private BigDecimal comissaoPlataformaDiferenciada;
 
-    private String fotoDestaqueUrl; // Foto de perfil principal
-    private String statusAtleta; // Ex: ATIVO, INATIVO, MEMORIAL
+    private String fotoDestaqueUrl;
+    private String statusAtleta;
 
     private Instant criadoEm;
     private Instant atualizadoEm;
 
-    // --- Enums para Regras de Negócio ---
+    // --- Enums ---
     public enum CategoriaAtleta {
-        HISTORICA,  // Apenas pesquisa, sem licenciamento ativo
-        ATIVA,      // Atleta viva que gere o próprio perfil
-        ESPOLIO     // Atleta falecida com herdeiros gerindo o licenciamento
+        HISTORICA, ATIVA, ESPOLIO
     }
 
     public enum StatusVerificacao {
@@ -87,7 +86,6 @@ public class Atleta {
         CPF, EMAIL, TELEFONE, ALEATORIA, NENHUM
     }
 
-    // Lógica para saber se este perfil pode gerar receita
     public boolean podeGerarReceita() {
         return (this.categoria == CategoriaAtleta.ATIVA || this.categoria == CategoriaAtleta.ESPOLIO)
                 && this.statusVerificacao == StatusVerificacao.VERIFICADO;
