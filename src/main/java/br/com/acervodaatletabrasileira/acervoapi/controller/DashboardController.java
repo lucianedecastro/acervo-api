@@ -7,14 +7,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
+import java.security.Principal;
+
 @RestController
-@RequestMapping("/api/dashboard")
+@RequestMapping("/dashboard") // Removido o /api para manter o padrão das outras rotas
 @Tag(name = "Dashboard", description = "Visão gerencial e individual do acervo")
 public class DashboardController {
 
@@ -40,12 +41,9 @@ public class DashboardController {
     )
     @GetMapping("/atleta")
     @PreAuthorize("hasRole('ATLETA')")
-    public Mono<AtletaDashboardStatsDTO> getAtletaDashboard(Authentication authentication) {
-        /* O name do Authentication contém o e-mail da atleta extraído do Token JWT.
-           O DashboardService usará esse identificador para buscar as estatísticas
-           específicas dela (vendas, itens cadastrados, etc).
-        */
-        String identificador = authentication.getName();
+    public Mono<AtletaDashboardStatsDTO> getAtletaDashboard(Principal principal) {
+        // O getName() contém o identificador (e-mail ou ID) vindo do JWT
+        String identificador = principal.getName();
         return service.getAtletaStats(identificador);
     }
 }

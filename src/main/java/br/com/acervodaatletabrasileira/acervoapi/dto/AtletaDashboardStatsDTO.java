@@ -1,8 +1,9 @@
 package br.com.acervodaatletabrasileira.acervoapi.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
 
-@Schema(description = "Resumo estatístico individual da atleta para o Dashboard")
+@Schema(description = "Resumo estatístico e financeiro individual da atleta para o Dashboard")
 public record AtletaDashboardStatsDTO(
         @Schema(description = "Total de itens vinculados à atleta no acervo")
         long totalMeusItens,
@@ -16,11 +17,10 @@ public record AtletaDashboardStatsDTO(
         @Schema(description = "Quantidade de itens históricos ou em memorial")
         long itensNoMemorial,
 
-        @Schema(description = "Total de visualizações do perfil público (métrica futura)")
-        long totalVisualizacoesPerfil
+        @Schema(description = "Total de licenças/vendas realizadas")
+        long totalLicenciamentosVendidos,
+
+        @Schema(description = "Saldo total líquido disponível para repasse")
+        BigDecimal saldoTotalAtleta
 ) {
-    // Construtor auxiliar para o Service que usamos agora (sem as visualizações ainda)
-    public AtletaDashboardStatsDTO(long totalMeusItens, long itensPublicados, long itensEmRascunho, long itensNoMemorial) {
-        this(totalMeusItens, itensPublicados, itensEmRascunho, itensNoMemorial, 0L);
-    }
 }

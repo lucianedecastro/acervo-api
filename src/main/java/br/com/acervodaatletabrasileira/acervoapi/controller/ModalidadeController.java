@@ -1,6 +1,7 @@
 package br.com.acervodaatletabrasileira.acervoapi.controller;
 
 import br.com.acervodaatletabrasileira.acervoapi.dto.ModalidadeDTO;
+import br.com.acervodaatletabrasileira.acervoapi.dto.ModalidadePublicaDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Modalidade;
 import br.com.acervodaatletabrasileira.acervoapi.service.ModalidadeService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,34 +25,47 @@ public class ModalidadeController {
     }
 
     /* =====================================================
-       LEITURA PÚBLICA
+       LEITURA PÚBLICA (Com Proteção DTO e Filtro de Ativas)
        ===================================================== */
 
-    @Operation(summary = "Lista todas as modalidades ativas")
+    @Operation(summary = "Lista todas as modalidades ativas para o público")
     @GetMapping
-    public Flux<Modalidade> listarTodas() {
-        return modalidadeService.findAll();
+    public Flux<ModalidadePublicaDTO> listarTodas() {
+        return modalidadeService.findAll()
+                .filter(m -> Boolean.TRUE.equals(m.getAtiva()))
+                .map(ModalidadePublicaDTO::fromModel);
     }
 
     @Operation(summary = "Busca uma modalidade ativa pelo ID")
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<Modalidade>> buscarPorId(@PathVariable String id) {
+    public Mono<ResponseEntity<ModalidadePublicaDTO>> buscarPorId(@PathVariable String id) {
         return modalidadeService.findById(id)
-                .map(ResponseEntity::ok)
+                .filter(m -> Boolean.TRUE.equals(m.getAtiva()))
+                .map(m -> ResponseEntity.ok(ModalidadePublicaDTO.fromModel(m)))
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
     @Operation(summary = "Busca uma modalidade ativa pelo Slug (URL Amigável)")
     @GetMapping("/slug/{slug}")
-    public Mono<ResponseEntity<Modalidade>> buscarPorSlug(@PathVariable String slug) {
+    public Mono<ResponseEntity<ModalidadePublicaDTO>> buscarPorSlug(@PathVariable String slug) {
         return modalidadeService.findBySlug(slug)
-                .map(ResponseEntity::ok)
+                .filter(m -> Boolean.TRUE.equals(m.getAtiva()))
+                .map(m -> ResponseEntity.ok(ModalidadePublicaDTO.fromModel(m)))
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
     /* =====================================================
-       ADMIN – ESCRITA (JWT Requerido)
+       ADMIN – GESTÃO E ESCRITA (JWT Requerido)
        ===================================================== */
+
+    @Operation(
+            summary = "Lista todas as modalidades (ativas e inativas) para gestão do Admin",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @GetMapping("/admin")
+    public Flux<Modalidade> listarParaAdmin() {
+        return modalidadeService.findAll();
+    }
 
     @Operation(
             summary = "Cria uma nova modalidade",

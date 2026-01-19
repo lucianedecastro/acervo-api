@@ -24,22 +24,24 @@ public class ModalidadeService {
     }
 
     /* ==========================
-       LEITURA (PÚBLICA)
+       LEITURA
        ========================== */
 
+    /**
+     * Retorna todas as modalidades.
+     * O filtro de 'ativas' é aplicado no Controller para o público,
+     * permitindo que o Admin veja todas aqui.
+     */
     public Flux<Modalidade> findAll() {
-        // Busca apenas as ativas diretamente no MongoDB
-        return repository.findByAtivaTrue();
+        return repository.findAll();
     }
 
     public Mono<Modalidade> findById(String id) {
-        return repository.findById(id)
-                .filter(m -> Boolean.TRUE.equals(m.getAtiva()));
+        return repository.findById(id);
     }
 
     public Mono<Modalidade> findBySlug(String slug) {
-        return repository.findBySlug(slug)
-                .filter(m -> Boolean.TRUE.equals(m.getAtiva()));
+        return repository.findBySlug(slug);
     }
 
     /* ==========================
@@ -52,6 +54,10 @@ public class ModalidadeService {
         modalidade.setHistoria(dto.historia());
         modalidade.setPictogramaUrl(dto.pictogramaUrl());
         modalidade.setAtiva(dto.ativa() != null ? dto.ativa() : true);
+
+        // Novos campos mapeados para garantir integridade
+        modalidade.setFotos(dto.fotos());
+        modalidade.setFotoDestaquePublicId(dto.fotoDestaquePublicId());
 
         modalidade.setSlug(generateSlug(dto.nome()));
         modalidade.setCriadoEm(Instant.now());
@@ -67,18 +73,23 @@ public class ModalidadeService {
     public Mono<Modalidade> update(String id, ModalidadeDTO dto) {
         return repository.findById(id)
                 .switchIfEmpty(
-                        Mono.error(new IllegalArgumentException("Modalidade não encontrada"))
+                        Mono.error(new IllegalArgumentException("Modalidade não encontrada com o ID: " + id))
                 )
                 .flatMap(existing -> {
-                    // Se o nome mudou, atualizamos o slug
-                    if (!existing.getNome().equalsIgnoreCase(dto.nome())) {
+                    // Atualiza o slug apenas se o nome realmente mudou
+                    if (dto.nome() != null && !existing.getNome().equalsIgnoreCase(dto.nome())) {
                         existing.setSlug(generateSlug(dto.nome()));
+                        existing.setNome(dto.nome());
                     }
 
-                    existing.setNome(dto.nome());
-                    existing.setHistoria(dto.historia());
-                    existing.setPictogramaUrl(dto.pictogramaUrl());
-                    existing.setAtiva(dto.ativa() != null ? dto.ativa() : existing.getAtiva());
+                    if (dto.historia() != null) existing.setHistoria(dto.historia());
+                    if (dto.pictogramaUrl() != null) existing.setPictogramaUrl(dto.pictogramaUrl());
+                    if (dto.ativa() != null) existing.setAtiva(dto.ativa());
+
+                    // Atualiza listas de fotos e destaque se vierem no DTO
+                    if (dto.fotos() != null) existing.setFotos(dto.fotos());
+                    if (dto.fotoDestaquePublicId() != null) existing.setFotoDestaquePublicId(dto.fotoDestaquePublicId());
+
                     existing.setAtualizadoEm(Instant.now());
 
                     return repository.save(existing);
@@ -94,7 +105,7 @@ public class ModalidadeService {
     }
 
     /* ==========================
-       UTIL
+       UTIL (Gerador de Slugs)
        ========================== */
 
     private String generateSlug(String input) {
