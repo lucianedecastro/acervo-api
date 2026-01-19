@@ -12,7 +12,7 @@ public interface AtletaRepository
 
     /**
      * Busca uma atleta pelo e-mail.
-     * Essencial para o processo de login no Dashboard da Atleta.
+     * Essencial para o processo de login no Dashboard da Atleta e endpoint /me.
      */
     Mono<Atleta> findByEmail(String email);
 

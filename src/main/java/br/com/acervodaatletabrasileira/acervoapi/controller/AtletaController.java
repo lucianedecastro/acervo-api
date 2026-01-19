@@ -1,7 +1,7 @@
 package br.com.acervodaatletabrasileira.acervoapi.controller;
 
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaFormDTO;
-import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPerfilDTO; // Importado
+import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPerfilDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
 import br.com.acervodaatletabrasileira.acervoapi.service.AtletaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.security.Principal;
+
 @RestController
 @RequestMapping("/atletas")
 @Tag(name = "Atletas", description = "Endpoints públicos e administrativos do acervo de atletas")
@@ -23,6 +25,23 @@ public class AtletaController {
 
     public AtletaController(AtletaService atletaService) {
         this.atletaService = atletaService;
+    }
+
+    /* =====================================================
+       DASHBOARD DA ATLETA (LOGADA)
+       ===================================================== */
+
+    @Operation(
+            summary = "Retorna o perfil da atleta logada (Dashboard)",
+            description = "Extrai a identidade da atleta a partir do Token JWT enviado no Header.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @GetMapping("/me")
+    public Mono<ResponseEntity<Atleta>> obterMeuPerfil(Principal principal) {
+        // principal.getName() retorna o e-mail/subject contido no Token JWT
+        return atletaService.findByEmail(principal.getName())
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     /* =====================================================
@@ -50,13 +69,10 @@ public class AtletaController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    /**
-     * Ajustado para retornar o Perfil Completo (Atleta + Itens do Acervo)
-     */
     @Operation(summary = "Busca o perfil completo da atleta pelo Slug (Dados + Acervo)")
     @GetMapping("/perfil/{slug}")
     public Mono<ResponseEntity<AtletaPerfilDTO>> buscarPorSlug(@PathVariable String slug) {
-        return atletaService.getPerfilCompletoBySlug(slug) // Chama o novo método do Service
+        return atletaService.getPerfilCompletoBySlug(slug)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
@@ -112,8 +128,6 @@ public class AtletaController {
     public Mono<ResponseEntity<Void>> remover(@PathVariable String id) {
         return atletaService.deleteById(id)
                 .then(Mono.just(new ResponseEntity<Void>(HttpStatus.NO_CONTENT)))
-                .onErrorResume(e -> {
-                    return Mono.just(new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED));
-                });
+                .onErrorResume(e -> Mono.just(new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED)));
     }
 }

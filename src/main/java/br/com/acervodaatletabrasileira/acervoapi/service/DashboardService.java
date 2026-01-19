@@ -55,19 +55,25 @@ public class DashboardService {
 
     /**
      * Visão Personalizada para a Atleta Logada
-     * Filtra apenas itens onde o ID da atleta está presente na lista de donos.
+     * Primeiro encontra a atleta pelo e-mail (do Token) para pegar o ID real,
+     * e então filtra os itens no acervo.
      */
-    public Mono<AtletaDashboardStatsDTO> getAtletaStats(String atletaId) {
-        return Mono.zip(
-                itemRepository.countByAtletasIdsContaining(atletaId),
-                itemRepository.countByAtletasIdsContainingAndStatus(atletaId, StatusItemAcervo.PUBLICADO),
-                itemRepository.countByAtletasIdsContainingAndStatus(atletaId, StatusItemAcervo.RASCUNHO),
-                itemRepository.countByAtletasIdsContainingAndStatus(atletaId, StatusItemAcervo.MEMORIAL)
-        ).map(tuple -> new AtletaDashboardStatsDTO(
-                tuple.getT1(), // totalMeusItens
-                tuple.getT2(), // itensPublicados
-                tuple.getT3(), // itensEmRascunho
-                tuple.getT4()  // itensNoMemorial
-        ));
+    public Mono<AtletaDashboardStatsDTO> getAtletaStats(String emailAtleta) {
+        return atletaRepository.findByEmail(emailAtleta)
+                .switchIfEmpty(Mono.error(new RuntimeException("Atleta não encontrada para o e-mail: " + emailAtleta)))
+                .flatMap(atleta -> {
+                    String atletaId = atleta.getId();
+                    return Mono.zip(
+                            itemRepository.countByAtletasIdsContaining(atletaId),
+                            itemRepository.countByAtletasIdsContainingAndStatus(atletaId, StatusItemAcervo.PUBLICADO),
+                            itemRepository.countByAtletasIdsContainingAndStatus(atletaId, StatusItemAcervo.RASCUNHO),
+                            itemRepository.countByAtletasIdsContainingAndStatus(atletaId, StatusItemAcervo.MEMORIAL)
+                    ).map(tuple -> new AtletaDashboardStatsDTO(
+                            tuple.getT1(), // totalMeusItens
+                            tuple.getT2(), // itensPublicados
+                            tuple.getT3(), // itensEmRascunho
+                            tuple.getT4()  // itensNoMemorial
+                    ));
+                });
     }
 }

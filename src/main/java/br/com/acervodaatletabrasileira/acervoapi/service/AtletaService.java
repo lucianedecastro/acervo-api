@@ -2,7 +2,7 @@ package br.com.acervodaatletabrasileira.acervoapi.service;
 
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaFormDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPerfilDTO;
-import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPublicoDTO; // Novo Import
+import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPublicoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
 import br.com.acervodaatletabrasileira.acervoapi.repository.AtletaRepository;
 import br.com.acervodaatletabrasileira.acervoapi.repository.ItemAcervoRepository;
@@ -31,6 +31,18 @@ public class AtletaService {
         this.atletaRepository = atletaRepository;
         this.acervoRepository = acervoRepository;
         this.passwordEncoder = passwordEncoder;
+    }
+
+    /* ==========================
+       BUSCA POR IDENTIDADE (DASHBOARD)
+       ========================== */
+
+    /**
+     * Busca uma atleta pelo e-mail. Usado no Dashboard (/me)
+     * para identificar a atleta logada via Token JWT.
+     */
+    public Mono<Atleta> findByEmail(String email) {
+        return atletaRepository.findByEmail(email);
     }
 
     /* ==========================

@@ -41,10 +41,11 @@ public class DashboardController {
     @GetMapping("/atleta")
     @PreAuthorize("hasRole('ATLETA')")
     public Mono<AtletaDashboardStatsDTO> getAtletaDashboard(Authentication authentication) {
-        /* O name do Principal geralmente contém o ID ou Email do usuário logado,
-           dependendo de como você configurou o seu UserDetails no CustomUserDetailsService.
+        /* O name do Authentication contém o e-mail da atleta extraído do Token JWT.
+           O DashboardService usará esse identificador para buscar as estatísticas
+           específicas dela (vendas, itens cadastrados, etc).
         */
-        String atletaId = authentication.getName();
-        return service.getAtletaStats(atletaId);
+        String identificador = authentication.getName();
+        return service.getAtletaStats(identificador);
     }
 }

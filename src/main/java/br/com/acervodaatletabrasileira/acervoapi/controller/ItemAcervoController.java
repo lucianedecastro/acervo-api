@@ -109,11 +109,11 @@ public class ItemAcervoController {
             @RequestBody ItemAcervoCreateDTO dto,
             Authentication authentication
     ) {
-        // Extraímos o ID e a Role do contexto de segurança reativo
-        String usuarioId = authentication.getName();
+        // authentication.getName() retorna o e-mail da atleta ou admin
+        String identificador = authentication.getName();
         String role = authentication.getAuthorities().iterator().next().getAuthority();
 
-        return service.atualizarProtegido(id, dto, usuarioId, role)
+        return service.atualizarProtegido(id, dto, identificador, role)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
@@ -169,7 +169,7 @@ public class ItemAcervoController {
         return Mono.fromCallable(() -> objectMapper.readValue(metadataStr, FotoDTO.class))
                 .flatMap(metadata -> service.adicionarFoto(id, file, metadata))
                 .map(ResponseEntity::ok)
-                .doOnError(e -> log.error("Erro ao processar upload de foto: {}", e.getMessage()))
+                .doOnError(e -> log.error("Erro ao processar upload de foto no item {}: {}", id, e.getMessage()))
                 .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).build()));
     }
 }
