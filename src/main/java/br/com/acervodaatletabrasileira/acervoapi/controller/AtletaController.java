@@ -33,13 +33,17 @@ public class AtletaController {
 
     @Operation(
             summary = "Retorna o perfil da atleta logada (Dashboard)",
-            description = "Extrai a identidade da atleta a partir do Token JWT enviado no Header.",
+            description = "Extrai a identidade da atleta a partir do Token JWT (suporta ID ou E-mail no subject).",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @GetMapping("/me")
     public Mono<ResponseEntity<Atleta>> obterMeuPerfil(Principal principal) {
-        // principal.getName() retorna o e-mail/subject contido no Token JWT
-        return atletaService.findByEmail(principal.getName())
+        String identificador = principal.getName();
+
+        // Tenta buscar por ID primeiro (caso o token envie o ID do MongoDB)
+        return atletaService.findById(identificador)
+                // Se não encontrar por ID, tenta buscar por e-mail (fluxo padrão)
+                .switchIfEmpty(atletaService.findByEmail(identificador))
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
