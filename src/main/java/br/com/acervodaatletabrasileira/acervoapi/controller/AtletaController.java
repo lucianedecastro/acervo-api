@@ -2,6 +2,7 @@ package br.com.acervodaatletabrasileira.acervoapi.controller;
 
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaFormDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPerfilDTO;
+import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPublicoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
 import br.com.acervodaatletabrasileira.acervoapi.service.AtletaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,27 +50,32 @@ public class AtletaController {
     }
 
     /* =====================================================
-       LEITURA PÚBLICA
+       LEITURA PÚBLICA (COM DTO DE PROTEÇÃO)
        ===================================================== */
 
-    @Operation(summary = "Lista atletas do acervo (opcionalmente filtradas por categoria)")
+    @Operation(summary = "Lista atletas do acervo (visão pública protegida)")
     @GetMapping
-    public Flux<Atleta> listar(
+    public Flux<AtletaPublicoDTO> listar(
             @Parameter(description = "Filtrar por: HISTORICA, ATIVA ou ESPOLIO")
             @RequestParam(required = false) Atleta.CategoriaAtleta categoria
     ) {
+        Flux<Atleta> atletas;
         if (categoria != null) {
-            return atletaService.findAll()
+            atletas = atletaService.findAll()
                     .filter(atleta -> atleta.getCategoria() == categoria);
+        } else {
+            atletas = atletaService.findAll();
         }
-        return atletaService.findAll();
+
+        // Aplica a conversão para DTO para esconder dados sensíveis
+        return atletas.map(AtletaPublicoDTO::fromModel);
     }
 
-    @Operation(summary = "Busca uma atleta pelo ID")
+    @Operation(summary = "Busca os dados públicos de uma atleta pelo ID")
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<Atleta>> buscarPorId(@PathVariable String id) {
+    public Mono<ResponseEntity<AtletaPublicoDTO>> buscarPorId(@PathVariable String id) {
         return atletaService.findById(id)
-                .map(ResponseEntity::ok)
+                .map(atleta -> ResponseEntity.ok(AtletaPublicoDTO.fromModel(atleta)))
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
