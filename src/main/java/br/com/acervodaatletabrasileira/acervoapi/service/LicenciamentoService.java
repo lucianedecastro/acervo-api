@@ -32,32 +32,47 @@ public class LicenciamentoService {
     private static final BigDecimal DEFAULT_REPASSE = new BigDecimal("0.85");
     private static final BigDecimal DEFAULT_COMISSAO = new BigDecimal("0.15");
 
-    public LicenciamentoService(ItemAcervoRepository itemRepository,
-                                AtletaRepository atletaRepository,
-                                TransacaoRepository transacaoRepository,
-                                ConfiguracaoFiscalRepository configRepository) {
+    public LicenciamentoService(
+            ItemAcervoRepository itemRepository,
+            AtletaRepository atletaRepository,
+            TransacaoRepository transacaoRepository,
+            ConfiguracaoFiscalRepository configRepository
+    ) {
         this.itemRepository = itemRepository;
         this.atletaRepository = atletaRepository;
         this.transacaoRepository = transacaoRepository;
         this.configRepository = configRepository;
     }
 
+    /* =====================================================
+       CONFIGURAÇÕES FISCAIS
+       ===================================================== */
+
     /**
-     * Busca as taxas configuradas ou retorna valores padrão se não existir no banco.
+     * Busca as taxas configuradas ou retorna valores padrão
+     * caso ainda não exista configuração no banco.
      */
     private Mono<ConfiguracaoFiscal> obterRegrasFiscais() {
         return configRepository.findById(CONFIG_ID)
-                .defaultIfEmpty(new ConfiguracaoFiscal(
-                        CONFIG_ID,
-                        DEFAULT_REPASSE,
-                        DEFAULT_COMISSAO,
-                        "Configuração padrão do sistema",
-                        Instant.now(),
-                        "SYSTEM"
-                ));
+                .defaultIfEmpty(
+                        new ConfiguracaoFiscal(
+                                CONFIG_ID,
+                                DEFAULT_REPASSE,
+                                DEFAULT_COMISSAO,
+                                "Configuração padrão do sistema",
+                                Instant.now(),
+                                "SYSTEM"
+                        )
+                );
     }
 
-    public Mono<SimulacaoFaturamentoDTO> gerarSimulacaoFaturamento(PropostaLicenciamentoDTO proposta) {
+    /* =====================================================
+       SIMULAÇÃO DE FATURAMENTO
+       ===================================================== */
+
+    public Mono<SimulacaoFaturamentoDTO> gerarSimulacaoFaturamento(
+            PropostaLicenciamentoDTO proposta
+    ) {
         return obterRegrasFiscais().flatMap(config ->
                 itemRepository.findById(proposta.itemAcervoId())
                         .switchIfEmpty(Mono.error(new RuntimeException("Item não encontrado")))
@@ -66,13 +81,17 @@ public class LicenciamentoService {
                             var item = tuple.getT1();
                             var atleta = tuple.getT2();
 
-                            BigDecimal valorTotal = item.getPrecoBaseLicenciamento() != null ?
-                                    item.getPrecoBaseLicenciamento() : BigDecimal.ZERO;
+                            BigDecimal valorTotal =
+                                    item.getPrecoBaseLicenciamento() != null
+                                            ? item.getPrecoBaseLicenciamento()
+                                            : BigDecimal.ZERO;
 
-                            // Cálculo usando as regras dinâmicas do banco
-                            BigDecimal repasseAtleta = valorTotal.multiply(config.getPercentualRepasseAtleta())
+                            BigDecimal repasseAtleta = valorTotal
+                                    .multiply(config.getPercentualRepasseAtleta())
                                     .setScale(2, RoundingMode.HALF_UP);
-                            BigDecimal comissaoPlataforma = valorTotal.subtract(repasseAtleta);
+
+                            BigDecimal comissaoPlataforma =
+                                    valorTotal.subtract(repasseAtleta);
 
                             return new SimulacaoFaturamentoDTO(
                                     item.getTitulo(),
@@ -85,7 +104,13 @@ public class LicenciamentoService {
         );
     }
 
-    public Mono<TransacaoResponseDTO> efetivarLicenciamento(PropostaLicenciamentoDTO proposta) {
+    /* =====================================================
+       EFETIVAÇÃO DO LICENCIAMENTO
+       ===================================================== */
+
+    public Mono<TransacaoResponseDTO> efetivarLicenciamento(
+            PropostaLicenciamentoDTO proposta
+    ) {
         return obterRegrasFiscais().flatMap(config ->
                 itemRepository.findById(proposta.itemAcervoId())
                         .zipWith(atletaRepository.findById(proposta.atletaId()))
@@ -93,61 +118,99 @@ public class LicenciamentoService {
                             var item = tuple.getT1();
                             var atleta = tuple.getT2();
 
-                            BigDecimal valorTotal = item.getPrecoBaseLicenciamento() != null ?
-                                    item.getPrecoBaseLicenciamento() : BigDecimal.ZERO;
+                            BigDecimal valorTotal =
+                                    item.getPrecoBaseLicenciamento() != null
+                                            ? item.getPrecoBaseLicenciamento()
+                                            : BigDecimal.ZERO;
 
-                            // Cálculo usando as regras dinâmicas do banco
-                            BigDecimal repasseAtleta = valorTotal.multiply(config.getPercentualRepasseAtleta())
+                            BigDecimal repasseAtleta = valorTotal
+                                    .multiply(config.getPercentualRepasseAtleta())
                                     .setScale(2, RoundingMode.HALF_UP);
-                            BigDecimal comissao = valorTotal.subtract(repasseAtleta);
+
+                            BigDecimal comissaoPlataforma =
+                                    valorTotal.subtract(repasseAtleta);
 
                             Transacao transacao = new Transacao();
                             transacao.setItemId(item.getId());
                             transacao.setAtletaId(atleta.getId());
                             transacao.setValorBrutoTotal(valorTotal);
                             transacao.setValorLiquidoRepasse(repasseAtleta);
-                            transacao.setValorComissaoPlataforma(comissao);
-
-                            // Salva qual era o percentual no momento da venda (Snapshot Fiscal)
-                            transacao.setPercentualComissao(config.getPercentualComissaoPlataforma());
-
+                            transacao.setValorComissaoPlataforma(comissaoPlataforma);
+                            transacao.setPercentualComissao(
+                                    config.getPercentualComissaoPlataforma()
+                            );
                             transacao.setTipoLicenca(proposta.tipoUso());
                             transacao.setMoeda("BRL");
                             transacao.setStatusFinanceiro("CONCLUIDA");
                             transacao.setDataTransacao(Instant.now());
                             transacao.setAtualizadoEm(Instant.now());
 
-                            return transacaoRepository.save(transacao)
+                            return transacaoRepository
+                                    .save(transacao)
                                     .map(this::mapToResponseDTO);
                         })
         );
     }
 
+    /* =====================================================
+       LISTAGENS E EXTRATOS
+       ===================================================== */
+
+    /**
+     * Histórico simples de transações por atleta
+     */
     public Flux<TransacaoResponseDTO> listarTransacoesPorAtleta(String atletaId) {
-        return transacaoRepository.findByAtletaId(atletaId)
+        return transacaoRepository
+                .findByAtletaId(atletaId)
                 .map(this::mapToResponseDTO);
     }
 
+    /**
+     * Extrato consolidado (ADMIN e ATLETA)
+     * 🔧 CORREÇÃO: tratamento explícito quando a atleta não existe
+     */
     public Mono<ExtratoAtletaDTO> gerarExtratoConsolidado(String atletaId) {
         return atletaRepository.findById(atletaId)
+                .switchIfEmpty(
+                        Mono.error(
+                                new IllegalArgumentException("Atleta não encontrada")
+                        )
+                )
                 .flatMap(atleta ->
                         transacaoRepository.findByAtletaId(atletaId)
-                                .filter(t -> "CONCLUIDA".equals(t.getStatusFinanceiro()))
+                                .filter(t ->
+                                        "CONCLUIDA".equals(t.getStatusFinanceiro())
+                                )
                                 .collectList()
                                 .map(lista -> {
                                     BigDecimal saldo = lista.stream()
                                             .map(Transacao::getValorLiquidoRepasse)
-                                            .reduce(BigDecimal.ZERO, BigDecimal::add)
-                                            .setScale(2, RoundingMode.HALF_UP);
+                                            .reduce(
+                                                    BigDecimal.ZERO,
+                                                    BigDecimal::add
+                                            )
+                                            .setScale(
+                                                    2,
+                                                    RoundingMode.HALF_UP
+                                            );
 
-                                    List<TransacaoResponseDTO> historico = lista.stream()
-                                            .map(this::mapToResponseDTO)
-                                            .toList();
+                                    List<TransacaoResponseDTO> historico =
+                                            lista.stream()
+                                                    .map(this::mapToResponseDTO)
+                                                    .toList();
 
-                                    return new ExtratoAtletaDTO(atleta.getNome(), saldo, historico);
+                                    return new ExtratoAtletaDTO(
+                                            atleta.getNome(),
+                                            saldo,
+                                            historico
+                                    );
                                 })
                 );
     }
+
+    /* =====================================================
+       MAPEAMENTO
+       ===================================================== */
 
     private TransacaoResponseDTO mapToResponseDTO(Transacao t) {
         return new TransacaoResponseDTO(
