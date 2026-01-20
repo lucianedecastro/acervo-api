@@ -43,94 +43,186 @@ public class SecurityConfig {
             "/webjars/**"
     };
 
+    /* =====================================================
+       AUTHENTICATION MANAGER
+       ===================================================== */
     @Bean
     public ReactiveAuthenticationManager reactiveAuthenticationManager(
             UserDetailsServiceImpl userDetailsService,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder
+    ) {
         UserDetailsRepositoryReactiveAuthenticationManager authManager =
                 new UserDetailsRepositoryReactiveAuthenticationManager(userDetailsService);
         authManager.setPasswordEncoder(passwordEncoder);
         return authManager;
     }
 
+    /* =====================================================
+       SECURITY FILTER CHAIN
+       ===================================================== */
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+
         http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .exceptionHandling(exceptionHandling -> exceptionHandling
+
+                .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((exchange, e) ->
-                                Mono.fromRunnable(() -> exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED)))
+                                Mono.fromRunnable(() ->
+                                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED)
+                                )
+                        )
                         .accessDeniedHandler((exchange, e) ->
-                                Mono.fromRunnable(() -> exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN)))
+                                Mono.fromRunnable(() ->
+                                        exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN)
+                                )
+                        )
                 )
+
                 .authorizeExchange(exchanges -> {
 
-                    // 1. Preflight (CORS)
+                /* ==========================
+                   1. PREFLIGHT (CORS)
+                   ========================== */
                     exchanges.pathMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
-                    // 2. LOGIN (Sempre Livre)
+                /* ==========================
+                   2. AUTENTICAÇÃO
+                   ========================== */
                     exchanges.pathMatchers(HttpMethod.POST, "/auth/login").permitAll();
                     exchanges.pathMatchers(HttpMethod.POST, "/admin/login").permitAll();
 
-                    // 3. CADASTRO DE ATLETAS (Sempre Livre)
-                    exchanges.pathMatchers(HttpMethod.POST, "/atletas").permitAll();
-
-                    // 4. REGISTROS ADMINISTRATIVOS (Protegidos por Flag de Ambiente)
                     if (adminRegisterEnabled) {
-                        exchanges.pathMatchers(HttpMethod.POST, "/auth/register-admin").permitAll();
-                        exchanges.pathMatchers(HttpMethod.POST, "/auth/register-temp").permitAll();
-                        exchanges.pathMatchers(HttpMethod.POST, "/admin/register-temp").permitAll();
+                        exchanges.pathMatchers(HttpMethod.POST,
+                                "/auth/register-admin",
+                                "/auth/register-temp",
+                                "/admin/register-temp"
+                        ).permitAll();
                     }
 
-                    // 5. DOCUMENTAÇÃO E CONSULTA PÚBLICA
+                /* ==========================
+                   3. SWAGGER / DOCUMENTAÇÃO
+                   ========================== */
                     exchanges.pathMatchers(SWAGGER_WHITELIST).permitAll();
-                    exchanges.pathMatchers("/licenciamento/**").permitAll();
-                    exchanges.pathMatchers(HttpMethod.GET, "/modalidades/**").permitAll();
-                    exchanges.pathMatchers(HttpMethod.GET, "/atletas/**").permitAll();
-                    exchanges.pathMatchers(HttpMethod.GET, "/acervo/**").permitAll();
 
-                    // 6. DASHBOARDS (Protegidos - Exige Token)
-                    exchanges.pathMatchers("/dashboard/**").authenticated();
-                    exchanges.pathMatchers("/api/dashboard/**").authenticated();
+                /* ==========================
+                   4. ROTAS PÚBLICAS (LEITURA)
+                   ========================== */
+                    exchanges.pathMatchers(HttpMethod.GET,
+                            "/modalidades/**",
+                            "/atletas/**",
+                            "/acervo/**"
+                    ).permitAll();
 
-                    // 7. GESTÃO DE ATLETAS E ACERVO (Escrita)
-                    exchanges.pathMatchers(HttpMethod.PUT, "/atletas/**").authenticated();
-                    exchanges.pathMatchers(HttpMethod.PATCH, "/atletas/**").authenticated();
-                    exchanges.pathMatchers(HttpMethod.DELETE, "/atletas/**").authenticated();
-                    exchanges.pathMatchers(HttpMethod.POST, "/acervo/**").authenticated();
-                    exchanges.pathMatchers(HttpMethod.PUT, "/acervo/**").authenticated();
-                    exchanges.pathMatchers(HttpMethod.DELETE, "/acervo/**").authenticated();
+                /* ==========================
+                   5. DASHBOARD ATLETA
+                   ========================== */
+                    exchanges.pathMatchers("/dashboard/atleta/**")
+                            .hasRole("ATLETA");
 
-                    // 8. ÁREA ADMINISTRATIVA
-                    exchanges.pathMatchers("/admin/**").authenticated();
-                    exchanges.pathMatchers("/modalidades/**").authenticated();
+                /* ==========================
+                   6. EXTRATO E LICENCIAMENTO
+                   ========================== */
+                    exchanges.pathMatchers(
+                            "/licenciamento/extrato/atleta/**",
+                            "/licenciamento/simular",
+                            "/licenciamento/efetivar"
+                    ).hasAnyRole("ATLETA", "ADMIN");
 
-                    // 9. FALLBACK
+                    exchanges.pathMatchers(
+                            "/licenciamento/extrato/consolidado/**"
+                    ).hasRole("ADMIN");
+
+                /* ==========================
+                   7. ADMINISTRATIVO
+                   ========================== */
+                    exchanges.pathMatchers(
+                            "/admin/**",
+                            "/dashboard/admin/**",
+                            "/modalidades/admin/**",
+                            "/atletas/admin/**",
+                            "/configuracoes/**"
+                    ).hasRole("ADMIN");
+
+                /* ==========================
+                   8. ESCRITA (PROTEGIDA)
+                   ========================== */
+                    exchanges.pathMatchers(
+                            HttpMethod.POST,
+                            "/acervo/**",
+                            "/modalidades/**",
+                            "/atletas/**"
+                    ).hasRole("ADMIN");
+
+                    exchanges.pathMatchers(
+                            HttpMethod.PUT,
+                            "/acervo/**",
+                            "/modalidades/**",
+                            "/atletas/**"
+                    ).hasRole("ADMIN");
+
+                    exchanges.pathMatchers(
+                            HttpMethod.PATCH,
+                            "/acervo/**",
+                            "/modalidades/**",
+                            "/atletas/**"
+                    ).hasRole("ADMIN");
+
+                    exchanges.pathMatchers(
+                            HttpMethod.DELETE,
+                            "/acervo/**",
+                            "/modalidades/**",
+                            "/atletas/**"
+                    ).hasRole("ADMIN");
+
+                /* ==========================
+                   9. FALLBACK
+                   ========================== */
                     exchanges.anyExchange().authenticated();
                 })
+
                 .addFilterAt(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION);
 
         return http.build();
     }
 
+    /* =====================================================
+       CORS
+       ===================================================== */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
+
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
                 "https://acervo-front-one.vercel.app",
                 "https://www.acervodaatletabrasileira.com.br"
         ));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept"));
+
+        config.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+        ));
+
+        config.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "Accept"
+        ));
+
         config.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", config);
         return source;
     }
 
+    /* =====================================================
+       PASSWORD ENCODER
+       ===================================================== */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
