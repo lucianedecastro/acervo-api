@@ -7,38 +7,60 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * DTO para criação/edição de itens.
- * Inclui o marcador de item histórico para diferenciar pesquisa de marketplace.
+ * DTO para criação e edição de itens do acervo.
+ * Usado por Admin e Atleta (e futuramente Fotógrafa).
  */
 public record ItemAcervoCreateDTO(
+
+        // Identidade editorial
         String titulo,
         String descricao,
         String local,
         String dataOriginal,
 
         /**
-         * Procedência: Identifica a atleta dona do acervo original.
+         * Procedência do item (ex: "Acervo pessoal de X", "Domínio público")
          */
         String procedencia,
+
+        /**
+         * Crédito autoral exibível
+         * (mantido por compatibilidade; pode evoluir depois)
+         */
         String fotografoDoador,
 
+        // Tipificação
         TipoItemAcervo tipo,
         StatusItemAcervo status,
 
         /**
-         * Inteligência de Licenciamento (Pilar de Sustentabilidade)
+         * Licenciamento
          */
         BigDecimal precoBaseLicenciamento,
         Boolean disponivelParaLicenciamento,
 
-        // Novo: Define se o item é apenas para o memorial/pesquisa
+        /**
+         * Define se o item é apenas histórico (memorial/pesquisa)
+         */
         Boolean itemHistorico,
 
+        /**
+         * Restrições específicas de uso
+         */
         String restricoesUso,
 
+        // Relacionamentos
         String modalidadeId,
         List<String> atletasIds,
+
+        /**
+         * Fotos associadas (metadados)
+         */
         List<FotoDTO> fotos,
+
+        /**
+         * Curador responsável pela validação
+         */
         String curadorResponsavel
 ) {
 }

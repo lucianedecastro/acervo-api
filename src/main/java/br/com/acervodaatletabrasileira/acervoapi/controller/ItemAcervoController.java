@@ -20,6 +20,9 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Set;
+import java.util.stream.Collectors;
+
 @Slf4j
 @RestController
 @RequestMapping("/acervo")
@@ -27,10 +30,10 @@ import reactor.core.publisher.Mono;
         name = "Acervo da Atleta Brasileira",
         description = """
                 Infraestrutura de preservação, pesquisa histórica e licenciamento.
-                
-                - Pesquisa Histórica: Itens de memória (Status MEMORIAL).
-                - Justiça Financeira: Itens para licenciamento remunerado.
-                - Curadoria Digital: Gestão de procedência e arquivos Cloudinary.
+
+                - Pesquisa Histórica
+                - Curadoria Digital
+                - Licenciamento Jurídico e Financeiro
                 """
 )
 public class ItemAcervoController {
@@ -44,16 +47,16 @@ public class ItemAcervoController {
     }
 
     /* =====================================================
-       CONSULTA PÚBLICA (VALORIZANDO A MEMÓRIA ATLETA)
+       CONSULTA PÚBLICA
        ===================================================== */
 
-    @Operation(summary = "Lista itens públicos (Pesquisa Histórica e Licenciáveis)")
+    @Operation(summary = "Lista itens públicos (Históricos e Licenciáveis)")
     @GetMapping
     public Flux<ItemAcervoResponseDTO> listarPublicados() {
         return service.listarPublicados();
     }
 
-    @Operation(summary = "Busca detalhe de um item (Histórico ou Comercial)")
+    @Operation(summary = "Busca detalhe de um item público")
     @GetMapping("/{id}")
     public Mono<ResponseEntity<ItemAcervoResponseDTO>> buscarPorId(@PathVariable String id) {
         return service.buscarPublicadoPorId(id)
@@ -61,24 +64,24 @@ public class ItemAcervoController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    @Operation(summary = "Filtra o acervo pessoal de uma atleta específica")
+    @Operation(summary = "Lista itens públicos de uma atleta")
     @GetMapping("/atleta/{atletaId}")
     public Flux<ItemAcervoResponseDTO> listarPorAtleta(@PathVariable String atletaId) {
         return service.listarPublicadosPorAtleta(atletaId);
     }
 
-    @Operation(summary = "Filtra o acervo por uma modalidade esportiva específica")
+    @Operation(summary = "Lista itens públicos por modalidade")
     @GetMapping("/modalidade/{modalidadeId}")
     public Flux<ItemAcervoResponseDTO> listarPorModalidade(@PathVariable String modalidadeId) {
         return service.listarPublicadosPorModalidade(modalidadeId);
     }
 
     /* =====================================================
-       ADMIN / CURADORIA / ÁREA DA ATLETA (ESCRITA)
+       ADMIN / CURADORIA
        ===================================================== */
 
     @Operation(
-            summary = "Lista base total para curadores (inclui rascunhos)",
+            summary = "Lista todos os itens (inclui rascunhos)",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @GetMapping("/admin")
@@ -88,38 +91,40 @@ public class ItemAcervoController {
     }
 
     @Operation(
-            summary = "Registra novo item (Marcando como Histórico ou Ativo)",
+            summary = "Cria novo item de acervo",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA', 'FOTOGRAFA')")
     public Mono<ItemAcervo> criar(@RequestBody ItemAcervoCreateDTO dto) {
         return service.criar(dto);
     }
 
     @Operation(
-            summary = "Atualiza metadados e regras de uso do item (Protegido por Role e Dono)",
+            summary = "Atualiza item (proteção por papel e propriedade)",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA', 'FOTOGRAFA')")
     public Mono<ResponseEntity<ItemAcervo>> atualizar(
             @PathVariable String id,
             @RequestBody ItemAcervoCreateDTO dto,
             Authentication authentication
     ) {
-        // authentication.getName() retorna o e-mail da atleta ou admin
         String identificador = authentication.getName();
-        String role = authentication.getAuthorities().iterator().next().getAuthority();
+        Set<String> roles = authentication.getAuthorities()
+                .stream()
+                .map(a -> a.getAuthority())
+                .collect(Collectors.toSet());
 
-        return service.atualizarProtegido(id, dto, identificador, role)
+        return service.atualizarProtegido(id, dto, identificador, roles)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
     @Operation(
-            summary = "Publica item (Itens históricos vão para MEMORIAL, ativos para PUBLICADO)",
+            summary = "Publica item no acervo",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @PostMapping("/{id}/publicar")
@@ -131,7 +136,7 @@ public class ItemAcervoController {
     }
 
     @Operation(
-            summary = "Remove item do acervo digital",
+            summary = "Remove item do acervo",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @DeleteMapping("/{id}")
@@ -142,25 +147,26 @@ public class ItemAcervoController {
     }
 
     /* =====================================================
-       GESTÃO DE ARQUIVOS DIGITAIS (CLOUDINARY)
+       GESTÃO DE ARQUIVOS
        ===================================================== */
 
     @Operation(
-            summary = "Upload de mídia bruta para o Cloudinary",
+            summary = "Upload avulso para o Cloudinary",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA', 'FOTOGRAFA')")
     public Mono<ResponseEntity<FotoDTO>> uploadAvulso(@RequestPart("file") FilePart file) {
-        return service.uploadCloudinaryPuro(file).map(ResponseEntity::ok);
+        return service.uploadCloudinaryPuro(file)
+                .map(ResponseEntity::ok);
     }
 
     @Operation(
-            summary = "Vincula foto ao item com legenda e destaque",
+            summary = "Adiciona foto a um item do acervo",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @PostMapping(value = "/{id}/fotos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA', 'FOTOGRAFA')")
     public Mono<ResponseEntity<FotoDTO>> uploadFoto(
             @PathVariable String id,
             @RequestPart("file") FilePart file,
@@ -169,7 +175,7 @@ public class ItemAcervoController {
         return Mono.fromCallable(() -> objectMapper.readValue(metadataStr, FotoDTO.class))
                 .flatMap(metadata -> service.adicionarFoto(id, file, metadata))
                 .map(ResponseEntity::ok)
-                .doOnError(e -> log.error("Erro ao processar upload de foto no item {}: {}", id, e.getMessage()))
-                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).build()));
+                .doOnError(e -> log.error("Erro no upload de foto do item {}: {}", id, e.getMessage()))
+                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest().build()));
     }
 }

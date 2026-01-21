@@ -5,10 +5,12 @@ import br.com.acervodaatletabrasileira.acervoapi.dto.PropostaLicenciamentoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.SimulacaoFaturamentoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.TransacaoResponseDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.ConfiguracaoFiscal;
+import br.com.acervodaatletabrasileira.acervoapi.model.Licenciamento;
 import br.com.acervodaatletabrasileira.acervoapi.model.Transacao;
 import br.com.acervodaatletabrasileira.acervoapi.repository.AtletaRepository;
 import br.com.acervodaatletabrasileira.acervoapi.repository.ConfiguracaoFiscalRepository;
 import br.com.acervodaatletabrasileira.acervoapi.repository.ItemAcervoRepository;
+import br.com.acervodaatletabrasileira.acervoapi.repository.LicenciamentoRepository;
 import br.com.acervodaatletabrasileira.acervoapi.repository.TransacaoRepository;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -19,6 +21,17 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Serviço de Licenciamento.
+ *
+ * Responsável por:
+ * - simular faturamento
+ * - efetivar transações
+ * - consultar licenciamentos (admin)
+ *
+ * NÃO decide autorização jurídica (delegado ao JuridicoService)
+ * NÃO executa regras fiscais complexas
+ */
 @Service
 public class LicenciamentoService {
 
@@ -26,6 +39,8 @@ public class LicenciamentoService {
     private final AtletaRepository atletaRepository;
     private final TransacaoRepository transacaoRepository;
     private final ConfiguracaoFiscalRepository configRepository;
+    private final JuridicoService juridicoService;
+    private final LicenciamentoRepository licenciamentoRepository;
 
     // Fallback caso o banco esteja sem configuração inicial
     private static final String CONFIG_ID = "GLOBAL_SETTINGS";
@@ -36,22 +51,22 @@ public class LicenciamentoService {
             ItemAcervoRepository itemRepository,
             AtletaRepository atletaRepository,
             TransacaoRepository transacaoRepository,
-            ConfiguracaoFiscalRepository configRepository
+            ConfiguracaoFiscalRepository configRepository,
+            JuridicoService juridicoService,
+            LicenciamentoRepository licenciamentoRepository
     ) {
         this.itemRepository = itemRepository;
         this.atletaRepository = atletaRepository;
         this.transacaoRepository = transacaoRepository;
         this.configRepository = configRepository;
+        this.juridicoService = juridicoService;
+        this.licenciamentoRepository = licenciamentoRepository;
     }
 
     /* =====================================================
        CONFIGURAÇÕES FISCAIS
        ===================================================== */
 
-    /**
-     * Busca as taxas configuradas ou retorna valores padrão
-     * caso ainda não exista configuração no banco.
-     */
     private Mono<ConfiguracaoFiscal> obterRegrasFiscais() {
         return configRepository.findById(CONFIG_ID)
                 .defaultIfEmpty(
@@ -73,35 +88,55 @@ public class LicenciamentoService {
     public Mono<SimulacaoFaturamentoDTO> gerarSimulacaoFaturamento(
             PropostaLicenciamentoDTO proposta
     ) {
-        return obterRegrasFiscais().flatMap(config ->
-                itemRepository.findById(proposta.itemAcervoId())
-                        .switchIfEmpty(Mono.error(new RuntimeException("Item não encontrado")))
-                        .zipWith(atletaRepository.findById(proposta.atletaId()))
-                        .map(tuple -> {
-                            var item = tuple.getT1();
-                            var atleta = tuple.getT2();
+        return juridicoService
+                .podeLicenciarItem(proposta.itemAcervoId())
+                .flatMap(podeLicenciar -> {
 
-                            BigDecimal valorTotal =
-                                    item.getPrecoBaseLicenciamento() != null
-                                            ? item.getPrecoBaseLicenciamento()
-                                            : BigDecimal.ZERO;
+                    if (!podeLicenciar) {
+                        return Mono.error(
+                                new IllegalStateException(
+                                        "Licenciamento bloqueado por pendência jurídica"
+                                )
+                        );
+                    }
 
-                            BigDecimal repasseAtleta = valorTotal
-                                    .multiply(config.getPercentualRepasseAtleta())
-                                    .setScale(2, RoundingMode.HALF_UP);
+                    return obterRegrasFiscais().flatMap(config ->
+                            itemRepository.findById(proposta.itemAcervoId())
+                                    .switchIfEmpty(
+                                            Mono.error(
+                                                    new IllegalArgumentException("Item não encontrado")
+                                            )
+                                    )
+                                    .zipWith(
+                                            atletaRepository.findById(proposta.atletaId())
+                                    )
+                                    .map(tuple -> {
 
-                            BigDecimal comissaoPlataforma =
-                                    valorTotal.subtract(repasseAtleta);
+                                        var item = tuple.getT1();
+                                        var atleta = tuple.getT2();
 
-                            return new SimulacaoFaturamentoDTO(
-                                    item.getTitulo(),
-                                    valorTotal,
-                                    repasseAtleta,
-                                    comissaoPlataforma,
-                                    atleta.getChavePix()
-                            );
-                        })
-        );
+                                        BigDecimal valorTotal =
+                                                item.getPrecoBaseLicenciamento() != null
+                                                        ? item.getPrecoBaseLicenciamento()
+                                                        : BigDecimal.ZERO;
+
+                                        BigDecimal repasseAtleta = valorTotal
+                                                .multiply(config.getPercentualRepasseAtleta())
+                                                .setScale(2, RoundingMode.HALF_UP);
+
+                                        BigDecimal comissaoPlataforma =
+                                                valorTotal.subtract(repasseAtleta);
+
+                                        return new SimulacaoFaturamentoDTO(
+                                                item.getTitulo(),
+                                                valorTotal,
+                                                repasseAtleta,
+                                                comissaoPlataforma,
+                                                atleta.getChavePix()
+                                        );
+                                    })
+                    );
+                });
     }
 
     /* =====================================================
@@ -111,65 +146,90 @@ public class LicenciamentoService {
     public Mono<TransacaoResponseDTO> efetivarLicenciamento(
             PropostaLicenciamentoDTO proposta
     ) {
-        return obterRegrasFiscais().flatMap(config ->
-                itemRepository.findById(proposta.itemAcervoId())
-                        .zipWith(atletaRepository.findById(proposta.atletaId()))
-                        .flatMap(tuple -> {
-                            var item = tuple.getT1();
-                            var atleta = tuple.getT2();
+        return juridicoService
+                .podeLicenciarItem(proposta.itemAcervoId())
+                .flatMap(podeLicenciar -> {
 
-                            BigDecimal valorTotal =
-                                    item.getPrecoBaseLicenciamento() != null
-                                            ? item.getPrecoBaseLicenciamento()
-                                            : BigDecimal.ZERO;
+                    if (!podeLicenciar) {
+                        return Mono.error(
+                                new IllegalStateException(
+                                        "Licenciamento bloqueado por pendência jurídica"
+                                )
+                        );
+                    }
 
-                            BigDecimal repasseAtleta = valorTotal
-                                    .multiply(config.getPercentualRepasseAtleta())
-                                    .setScale(2, RoundingMode.HALF_UP);
+                    return obterRegrasFiscais().flatMap(config ->
+                            itemRepository.findById(proposta.itemAcervoId())
+                                    .zipWith(
+                                            atletaRepository.findById(proposta.atletaId())
+                                    )
+                                    .flatMap(tuple -> {
 
-                            BigDecimal comissaoPlataforma =
-                                    valorTotal.subtract(repasseAtleta);
+                                        var item = tuple.getT1();
+                                        var atleta = tuple.getT2();
 
-                            Transacao transacao = new Transacao();
-                            transacao.setItemId(item.getId());
-                            transacao.setAtletaId(atleta.getId());
-                            transacao.setValorBrutoTotal(valorTotal);
-                            transacao.setValorLiquidoRepasse(repasseAtleta);
-                            transacao.setValorComissaoPlataforma(comissaoPlataforma);
-                            transacao.setPercentualComissao(
-                                    config.getPercentualComissaoPlataforma()
-                            );
-                            transacao.setTipoLicenca(proposta.tipoUso());
-                            transacao.setMoeda("BRL");
-                            transacao.setStatusFinanceiro("CONCLUIDA");
-                            transacao.setDataTransacao(Instant.now());
-                            transacao.setAtualizadoEm(Instant.now());
+                                        BigDecimal valorTotal =
+                                                item.getPrecoBaseLicenciamento() != null
+                                                        ? item.getPrecoBaseLicenciamento()
+                                                        : BigDecimal.ZERO;
 
-                            return transacaoRepository
-                                    .save(transacao)
-                                    .map(this::mapToResponseDTO);
-                        })
-        );
+                                        BigDecimal repasseAtleta = valorTotal
+                                                .multiply(config.getPercentualRepasseAtleta())
+                                                .setScale(2, RoundingMode.HALF_UP);
+
+                                        BigDecimal comissaoPlataforma =
+                                                valorTotal.subtract(repasseAtleta);
+
+                                        Transacao transacao = new Transacao();
+                                        transacao.setItemId(item.getId());
+                                        transacao.setAtletaId(atleta.getId());
+                                        transacao.setValorBrutoTotal(valorTotal);
+                                        transacao.setValorLiquidoRepasse(repasseAtleta);
+                                        transacao.setValorComissaoPlataforma(comissaoPlataforma);
+                                        transacao.setPercentualComissao(
+                                                config.getPercentualComissaoPlataforma()
+                                        );
+                                        transacao.setTipoLicenca(proposta.tipoUso());
+                                        transacao.setMoeda("BRL");
+                                        transacao.setStatusFinanceiro("CONCLUIDA");
+                                        transacao.setDataTransacao(Instant.now());
+                                        transacao.setAtualizadoEm(Instant.now());
+
+                                        return transacaoRepository
+                                                .save(transacao)
+                                                .map(this::mapToResponseDTO);
+                                    })
+                    );
+                });
     }
 
     /* =====================================================
-       LISTAGENS E EXTRATOS
+       CONSULTAS ADMINISTRATIVAS (LICENCIAMENTOS)
        ===================================================== */
 
-    /**
-     * Histórico simples de transações por atleta
-     */
-    public Flux<TransacaoResponseDTO> listarTransacoesPorAtleta(String atletaId) {
+    public Flux<Licenciamento> listarTodosLicenciamentos() {
+        return licenciamentoRepository.findAll();
+    }
+
+    public Flux<Licenciamento> listarLicenciamentosPorItem(String itemAcervoId) {
+        return licenciamentoRepository.findByItemAcervoId(itemAcervoId);
+    }
+
+    /* =====================================================
+       EXTRATOS
+       ===================================================== */
+
+    public Flux<TransacaoResponseDTO> listarTransacoesPorAtleta(
+            String atletaId
+    ) {
         return transacaoRepository
                 .findByAtletaId(atletaId)
                 .map(this::mapToResponseDTO);
     }
 
-    /**
-     * Extrato consolidado (ADMIN e ATLETA)
-     * 🔧 CORREÇÃO: tratamento explícito quando a atleta não existe
-     */
-    public Mono<ExtratoAtletaDTO> gerarExtratoConsolidado(String atletaId) {
+    public Mono<ExtratoAtletaDTO> gerarExtratoConsolidado(
+            String atletaId
+    ) {
         return atletaRepository.findById(atletaId)
                 .switchIfEmpty(
                         Mono.error(
@@ -183,16 +243,11 @@ public class LicenciamentoService {
                                 )
                                 .collectList()
                                 .map(lista -> {
+
                                     BigDecimal saldo = lista.stream()
                                             .map(Transacao::getValorLiquidoRepasse)
-                                            .reduce(
-                                                    BigDecimal.ZERO,
-                                                    BigDecimal::add
-                                            )
-                                            .setScale(
-                                                    2,
-                                                    RoundingMode.HALF_UP
-                                            );
+                                            .reduce(BigDecimal.ZERO, BigDecimal::add)
+                                            .setScale(2, RoundingMode.HALF_UP);
 
                                     List<TransacaoResponseDTO> historico =
                                             lista.stream()

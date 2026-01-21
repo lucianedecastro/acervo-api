@@ -12,9 +12,9 @@ import java.util.Collection;
 @Repository
 public interface ItemAcervoRepository extends ReactiveMongoRepository<ItemAcervo, String> {
 
-    // ==========================================
-    // MÉTODOS DE CONTAGEM (Dashboard)
-    // ==========================================
+    /* =====================================================
+       CONTAGENS (DASHBOARD / MÉTRICAS)
+       ===================================================== */
 
     Mono<Long> countByStatus(StatusItemAcervo status);
 
@@ -22,26 +22,70 @@ public interface ItemAcervoRepository extends ReactiveMongoRepository<ItemAcervo
 
     Mono<Long> countByAtletasIdsContainingAndStatus(String atletaId, StatusItemAcervo status);
 
-    // ==========================================
-    // CONSULTAS DE LISTAGEM
-    // ==========================================
+    /* =====================================================
+       CONSULTAS POR ATLETA
+       ===================================================== */
 
-    // Essencial para o nosso AtletaPerfilDTO (O Combo)
+    // Usado no perfil da atleta (combo)
     Flux<ItemAcervo> findByAtletasIdsContaining(String atletaId);
+
+    Flux<ItemAcervo> findByAtletasIdsContainingAndStatus(
+            String atletaId,
+            StatusItemAcervo status
+    );
+
+    Flux<ItemAcervo> findByAtletasIdsContainingAndStatusIn(
+            String atletaId,
+            Collection<StatusItemAcervo> statuses
+    );
+
+    /* =====================================================
+       CONSULTAS POR STATUS
+       ===================================================== */
 
     Flux<ItemAcervo> findByStatus(StatusItemAcervo status);
 
     Flux<ItemAcervo> findByStatusIn(Collection<StatusItemAcervo> statuses);
 
-    Flux<ItemAcervo> findByAtletasIdsContainingAndStatus(String atletaId, StatusItemAcervo status);
+    /**
+     * Consulta semântica para itens públicos
+     * (PUBLICADO, DISPONIVEL_LICENCIAMENTO, MEMORIAL)
+     */
+    Flux<ItemAcervo> findByStatusInAndItemHistoricoFalse(Collection<StatusItemAcervo> statuses);
 
-    Flux<ItemAcervo> findByAtletasIdsContainingAndStatusIn(String atletaId, Collection<StatusItemAcervo> statuses);
+    /* =====================================================
+       CONSULTAS POR MODALIDADE
+       ===================================================== */
 
     Flux<ItemAcervo> findByModalidadeId(String modalidadeId);
 
-    Flux<ItemAcervo> findByModalidadeIdAndStatus(String modalidadeId, StatusItemAcervo status);
+    Flux<ItemAcervo> findByModalidadeIdAndStatus(
+            String modalidadeId,
+            StatusItemAcervo status
+    );
+
+    /* =====================================================
+       LICENCIAMENTO / MARKETPLACE
+       ===================================================== */
+
+    /**
+     * Itens prontos para licenciamento comercial
+     */
+    Flux<ItemAcervo> findByDisponivelParaLicenciamentoTrueAndStatus(
+            StatusItemAcervo status
+    );
+
+    /* =====================================================
+       BUSCA EDITORIAL
+       ===================================================== */
 
     Flux<ItemAcervo> findByProcedenciaContainingIgnoreCase(String termo);
+
+    Flux<ItemAcervo> findByCreditoAutoralContainingIgnoreCase(String termo);
+
+    /* =====================================================
+       MEMORIAL / PESQUISA
+       ===================================================== */
 
     Flux<ItemAcervo> findByItemHistoricoTrue();
 }

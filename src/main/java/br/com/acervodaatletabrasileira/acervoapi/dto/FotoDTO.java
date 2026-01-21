@@ -4,20 +4,62 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * Representa os metadados de uma foto do acervo.
- * * - publicId: ID único no Cloudinary (essencial para gestão da mídia)
- * - url: Endereço público da imagem
+ *
+ * - publicId: identificador único no storage (Cloudinary)
+ * - url: URL pública (preview / marca d’água)
+ *
+ * Campos adicionais são opcionais e não obrigam uso no frontend.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record FotoDTO(
+
+        // Identificador interno opcional (não utilizado atualmente)
         String id,
+
+        // ID único no Cloudinary
         String publicId,
+
+        // Legenda editorial
         String legenda,
+
+        // Indica se é a imagem de destaque do item
         Boolean ehDestaque,
+
+        // URL pública de visualização
         String url,
-        String filename
+
+        // Nome do arquivo original
+        String filename,
+
+        /* =====================================================
+           CAMPOS OPCIONAIS (EXTENSÃO FUTURA)
+           ===================================================== */
+
+        // Nome público do autor (fotógrafa, agência, arquivo histórico)
+        String autorNomePublico,
+
+        // Indica se a imagem pode ser licenciada individualmente
+        Boolean licenciamentoPermitido
 ) {
-    // Método auxiliar para criar um DTO de resposta após o upload do Cloudinary
-    public static FotoDTO fromUpload(String url, String publicId, String legenda, Boolean ehDestaque) {
-        return new FotoDTO(null, publicId, legenda, ehDestaque, url, null);
+
+    /**
+     * Criação de DTO após upload simples (Cloudinary)
+     */
+    public static FotoDTO fromUpload(
+            String url,
+            String publicId,
+            String legenda,
+            Boolean ehDestaque
+    ) {
+        return new FotoDTO(
+                null,
+                publicId,
+                legenda,
+                ehDestaque,
+                url,
+                null,
+                null,
+                null
+        );
     }
 }

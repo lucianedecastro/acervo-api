@@ -1,15 +1,24 @@
 package br.com.acervodaatletabrasileira.acervoapi.model;
 
 /**
- * Define a natureza física ou digital do item preservado pela atleta.
- * Baseado na constatação de que o acervo pessoal é multifacetado.
+ * Define a natureza do item preservado no acervo.
+ * Mantido genérico para suportar atletas, fotógrafas e memória institucional.
  */
 public enum TipoItemAcervo {
+
     FOTO,
     VIDEO,
     AUDIO,
-    DOCUMENTO_OFICIAL, // Ex: Passaportes, Convocações
-    CREDENCIAL,        // Ex: Credenciais de Jogos Olímpicos ou Pan-Americanos
-    RECORTE_IMPRENSA,  // Ex: Páginas de jornais e revistas da época
-    OBJETO_FISICO      // Ex: Medalhas, Troféus ou Uniformes (para catalogação)
+
+    DOCUMENTO_OFICIAL,
+    CREDENCIAL,
+    RECORTE_IMPRENSA,
+    OBJETO_FISICO;
+
+    /**
+     * Indica se o tipo é naturalmente licenciável
+     */
+    public boolean podeSerLicenciado() {
+        return this == FOTO || this == VIDEO || this == AUDIO;
+    }
 }

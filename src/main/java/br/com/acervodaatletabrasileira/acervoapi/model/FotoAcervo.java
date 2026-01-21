@@ -5,8 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Representa os arquivos digitais associados a um Item do Acervo.
- * Adaptado para suportar o fluxo de licenciamento (visualização vs. entrega).
+ * Representa um arquivo digital associado a um Item do Acervo.
+ * Não depende de fotógrafa, atleta ou licenciamento específico.
  */
 @Data
 @NoArgsConstructor
@@ -14,34 +14,58 @@ import lombok.NoArgsConstructor;
 public class FotoAcervo {
 
     /**
-     * Identificador único no Cloudinary (publicId)
+     * Identificador único no storage (ex: Cloudinary publicId)
      */
     private String publicId;
 
     /**
-     * URL da imagem com marca d'água ou baixa resolução
-     * (Usada na galeria pública do site)
+     * URL pública (marca d'água, preview ou baixa resolução)
      */
     private String urlVisualizacao;
 
     /**
-     * URL da imagem original em alta resolução
-     * (Acesso restrito, liberado apenas após o licenciamento)
+     * URL restrita (alta resolução, entrega pós-licenciamento)
      */
     private String urlAltaResolucao;
 
     /**
-     * Legenda específica para esta imagem/documento
-     */
-    private String legenda;
-
-    /**
-     * Nome do arquivo original (ex: foto_olimpiada_2004.jpg)
+     * Nome original do arquivo
      */
     private String nomeArquivo;
 
     /**
-     * Indica se este arquivo é o principal/capa do item
+     * Legenda editorial
+     */
+    private String legenda;
+
+    /**
+     * Indica se esta imagem é a capa do item
      */
     private boolean destaque;
+
+    /* =====================================================
+       METADADOS OPCIONAIS (NÃO OBRIGATÓRIOS)
+       ===================================================== */
+
+    /**
+     * Indica se a imagem possui marca d’água aplicada
+     */
+    private boolean possuiMarcaDagua;
+
+    /**
+     * Identificador do autor da imagem (fotógrafa, arquivo, agência etc)
+     * Livre, não amarrado a entidade específica
+     */
+    private String autorId;
+
+    /**
+     * Nome público do autor (exibível mesmo sem entidade interna)
+     */
+    private String autorNomePublico;
+
+    /**
+     * Indica se esta imagem pode ser licenciada
+     * (controle fino por imagem)
+     */
+    private boolean licenciamentoPermitido;
 }

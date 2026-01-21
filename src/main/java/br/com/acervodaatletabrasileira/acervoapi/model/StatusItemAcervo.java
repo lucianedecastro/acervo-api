@@ -1,15 +1,45 @@
 package br.com.acervodaatletabrasileira.acervoapi.model;
 
+import java.util.EnumSet;
+import java.util.Set;
+
 /**
- * Controla o ciclo de vida do item na plataforma,
- * garantindo a segurança jurídica antes do licenciamento.
- * Agora com suporte à diferenciação entre memorial histórico e licenciamento ativo.
+ * Controla o ciclo de vida jurídico e editorial do item do acervo.
  */
 public enum StatusItemAcervo {
-    RASCUNHO,                 // Em edição pelo curador
-    EM_ANALISE_JURIDICA,      // Aguardando validação de direitos autorais ou imagem
-    PUBLICADO,                // Visível para consulta pública (frente ativa)
-    DISPONIVEL_LICENCIAMENTO, // Aprovado para circulação remunerada (venda)
-    MEMORIAL,                 // Item exclusivo para pesquisa histórica (sem licenciamento comercial)
-    ARQUIVADO                 // Item removido da visualização, mas mantido para histórico
+
+    RASCUNHO,                 // Em edição
+    EM_ANALISE_JURIDICA,      // Direitos autorais / imagem
+    PUBLICADO,                // Visível (consulta)
+    DISPONIVEL_LICENCIAMENTO, // Venda permitida
+    MEMORIAL,                 // Histórico, sem exploração comercial
+    ARQUIVADO;                // Retido por auditoria ou histórico
+
+    /**
+     * Status visíveis publicamente
+     */
+    private static final Set<StatusItemAcervo> STATUS_PUBLICOS =
+            EnumSet.of(PUBLICADO, DISPONIVEL_LICENCIAMENTO, MEMORIAL);
+
+    /**
+     * Indica se o item pode gerar receita
+     */
+    public boolean podeGerarReceita() {
+        return this == DISPONIVEL_LICENCIAMENTO;
+    }
+
+    /**
+     * Indica se o item é visível publicamente
+     */
+    public boolean visivelPublicamente() {
+        return STATUS_PUBLICOS.contains(this);
+    }
+
+    /**
+     * Lista padrão de status públicos
+     * (uso direto em services e repositories)
+     */
+    public static Set<StatusItemAcervo> statusPublicos() {
+        return STATUS_PUBLICOS;
+    }
 }

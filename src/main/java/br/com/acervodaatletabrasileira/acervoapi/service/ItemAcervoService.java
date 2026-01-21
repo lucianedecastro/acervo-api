@@ -16,10 +16,8 @@ import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ItemAcervoService {
@@ -28,7 +26,7 @@ public class ItemAcervoService {
     private final AtletaRepository atletaRepository;
     private final CloudinaryService cloudinaryService;
 
-    private final List<StatusItemAcervo> STATUS_PUBLICOS = Arrays.asList(
+    private static final List<StatusItemAcervo> STATUS_PUBLICOS = List.of(
             StatusItemAcervo.PUBLICADO,
             StatusItemAcervo.DISPONIVEL_LICENCIAMENTO,
             StatusItemAcervo.MEMORIAL
@@ -47,7 +45,8 @@ public class ItemAcervoService {
        ===================================================== */
 
     public Flux<ItemAcervoResponseDTO> listarPublicados() {
-        return repository.findByStatusIn(STATUS_PUBLICOS).map(this::toResponseDTO);
+        return repository.findByStatusIn(STATUS_PUBLICOS)
+                .map(this::toResponseDTO);
     }
 
     public Mono<ItemAcervoResponseDTO> buscarPublicadoPorId(String id) {
@@ -57,15 +56,19 @@ public class ItemAcervoService {
     }
 
     public Flux<ItemAcervoResponseDTO> listarPublicadosPorAtleta(String atletaId) {
-        return repository.findByAtletasIdsContainingAndStatusIn(atletaId, STATUS_PUBLICOS).map(this::toResponseDTO);
+        return repository
+                .findByAtletasIdsContainingAndStatusIn(atletaId, STATUS_PUBLICOS)
+                .map(this::toResponseDTO);
     }
 
     public Flux<ItemAcervoResponseDTO> listarPublicadosPorModalidade(String modalidadeId) {
-        return repository.findByModalidadeIdAndStatus(modalidadeId, StatusItemAcervo.PUBLICADO).map(this::toResponseDTO);
+        return repository
+                .findByModalidadeIdAndStatus(modalidadeId, StatusItemAcervo.PUBLICADO)
+                .map(this::toResponseDTO);
     }
 
     /* =====================================================
-       GESTÃO PROTEGIDA (DASHBOARD)
+       CRIAÇÃO
        ===================================================== */
 
     public Mono<ItemAcervo> criar(ItemAcervoCreateDTO dto) {
@@ -76,39 +79,134 @@ public class ItemAcervoService {
         return repository.save(item);
     }
 
-    public Mono<ItemAcervo> atualizarProtegido(String id, ItemAcervoCreateDTO dto, String emailUsuario, String role) {
-        return atletaRepository.findByEmail(emailUsuario)
-                .map(atleta -> atleta.getId())
-                .defaultIfEmpty(emailUsuario) // Se for Admin, o email segue como identificador
-                .flatMap(idLogado -> repository.findById(id)
+    /* =====================================================
+       ATUALIZAÇÃO PROTEGIDA
+       ===================================================== */
+
+    public Mono<ItemAcervo> atualizarProtegido(
+            String id,
+            ItemAcervoCreateDTO dto,
+            String identificadorUsuario,
+            Set<String> roles
+    ) {
+        boolean isAtleta = roles.contains("ROLE_ATLETA");
+
+        Mono<String> donoIdMono = isAtleta
+                ? atletaRepository.findByEmail(identificadorUsuario)
+                .map(a -> a.getId())
+                .switchIfEmpty(Mono.error(new AccessDeniedException("Atleta não encontrada")))
+                : Mono.just(identificadorUsuario);
+
+        return donoIdMono.flatMap(idLogado ->
+                repository.findById(id)
                         .switchIfEmpty(Mono.error(new IllegalArgumentException("Item não encontrado")))
                         .flatMap(existente -> {
-                            // Validação de Posse: Atleta só edita se o ID dela estiver no item
-                            if ("ROLE_ATLETA".equals(role) && !existente.getAtletasIds().contains(idLogado)) {
-                                return Mono.error(new AccessDeniedException("Você não tem permissão para editar este item."));
+
+                            if (isAtleta && !existente.getAtletasIds().contains(idLogado)) {
+                                return Mono.error(new AccessDeniedException("Sem permissão para editar este item"));
                             }
+
                             preencherDadosComuns(existente, dto);
                             existente.setAtualizadoEm(Instant.now());
                             return repository.save(existente);
-                        }));
+                        })
+        );
     }
 
+    /* =====================================================
+       PUBLICAÇÃO / REMOÇÃO
+       ===================================================== */
+
+    public Mono<ItemAcervo> publicar(String id) {
+        return repository.findById(id)
+                .flatMap(item -> {
+                    item.setStatus(Boolean.TRUE.equals(item.getItemHistorico())
+                            ? StatusItemAcervo.MEMORIAL
+                            : StatusItemAcervo.PUBLICADO);
+                    item.setAtualizadoEm(Instant.now());
+                    return repository.save(item);
+                });
+    }
+
+    public Mono<Void> remover(String id) {
+        return repository.deleteById(id);
+    }
+
+    public Flux<ItemAcervo> listarTodos() {
+        return repository.findAll();
+    }
+
+    /* =====================================================
+       UPLOAD E MÍDIA
+       ===================================================== */
+
+    public Mono<FotoDTO> uploadCloudinaryPuro(FilePart file) {
+        return cloudinaryService.uploadImagem(file, "temp")
+                .map(result ->
+                        FotoDTO.fromUpload(
+                                result.get("url"),
+                                result.get("publicId"),
+                                "Upload avulso",
+                                false
+                        )
+                );
+    }
+
+    public Mono<FotoDTO> adicionarFoto(String itemId, FilePart file, FotoDTO metadata) {
+        return repository.findById(itemId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Item não encontrado")))
+                .flatMap(item ->
+                        cloudinaryService.uploadImagem(file, "itens")
+                                .flatMap(result -> {
+
+                                    FotoAcervo foto = new FotoAcervo();
+                                    foto.setPublicId(result.get("publicId"));
+                                    foto.setUrlVisualizacao(result.get("url"));
+                                    foto.setLegenda(metadata.legenda());
+                                    foto.setDestaque(Boolean.TRUE.equals(metadata.ehDestaque()));
+                                    foto.setAutorNomePublico(metadata.autorNomePublico());
+                                    foto.setLicenciamentoPermitido(
+                                            Boolean.TRUE.equals(metadata.licenciamentoPermitido())
+                                    );
+
+                                    if (item.getFotos() == null) {
+                                        item.setFotos(new ArrayList<>());
+                                    }
+
+                                    item.getFotos().add(foto);
+                                    item.setAtualizadoEm(Instant.now());
+
+                                    return repository.save(item)
+                                            .thenReturn(toFotoDTO(foto));
+                                })
+                );
+    }
+
+    /* =====================================================
+       MÉTODO CENTRAL (O QUE ESTAVA FALTANDO)
+       ===================================================== */
+
     private void preencherDadosComuns(ItemAcervo item, ItemAcervoCreateDTO dto) {
+
         item.setTitulo(dto.titulo());
         item.setDescricao(dto.descricao());
         item.setLocal(dto.local());
         item.setDataOriginal(dto.dataOriginal());
+
         item.setProcedencia(dto.procedencia());
-        item.setFotografoDoador(dto.fotografoDoador());
+        item.setCreditoAutoral(dto.fotografoDoador());
+
         item.setTipo(dto.tipo());
         item.setModalidadeId(dto.modalidadeId());
         item.setAtletasIds(dto.atletasIds());
+
         item.setCuradorResponsavel(dto.curadorResponsavel());
         item.setRestricoesUso(dto.restricoesUso());
+
         item.setFotos(mapFotos(dto.fotos()));
         item.setItemHistorico(Boolean.TRUE.equals(dto.itemHistorico()));
 
-        if (item.getItemHistorico()) {
+        if (Boolean.TRUE.equals(item.getItemHistorico())) {
             item.setStatus(StatusItemAcervo.MEMORIAL);
             item.setDisponivelParaLicenciamento(false);
             item.setPrecoBaseLicenciamento(BigDecimal.ZERO);
@@ -120,60 +218,57 @@ public class ItemAcervoService {
     }
 
     /* =====================================================
-       UPLOAD E MÍDIA
+       MAPPERS
        ===================================================== */
 
-    public Mono<FotoDTO> uploadCloudinaryPuro(FilePart file) {
-        return cloudinaryService.uploadImagem(file, "temp")
-                .map(result -> FotoDTO.fromUpload(result.get("url"), result.get("publicId"), "Upload avulso", false));
-    }
-
-    public Mono<FotoDTO> adicionarFoto(String itemId, FilePart file, FotoDTO metadata) {
-        return repository.findById(itemId)
-                .flatMap(item -> cloudinaryService.uploadImagem(file, "itens")
-                        .flatMap(result -> {
-                            FotoAcervo foto = new FotoAcervo();
-                            foto.setPublicId(result.get("publicId"));
-                            foto.setUrlVisualizacao(result.get("url"));
-                            foto.setLegenda(metadata.legenda());
-                            foto.setDestaque(Boolean.TRUE.equals(metadata.ehDestaque()));
-
-                            if (item.getFotos() == null) item.setFotos(new ArrayList<>());
-                            item.getFotos().add(foto);
-                            item.setAtualizadoEm(Instant.now());
-
-                            return repository.save(item).thenReturn(toFotoDTO(foto));
-                        }));
-    }
-
-    // Mappers e Utilitários
-    public Flux<ItemAcervo> listarTodos() { return repository.findAll(); }
-    public Mono<ItemAcervo> publicar(String id) {
-        return repository.findById(id).flatMap(item -> {
-            item.setStatus(Boolean.TRUE.equals(item.getItemHistorico()) ? StatusItemAcervo.MEMORIAL : StatusItemAcervo.PUBLICADO);
-            item.setAtualizadoEm(Instant.now());
-            return repository.save(item);
-        });
-    }
-    public Mono<Void> remover(String id) { return repository.deleteById(id); }
-
     private ItemAcervoResponseDTO toResponseDTO(ItemAcervo item) {
-        return new ItemAcervoResponseDTO(item.getId(), item.getTitulo(), item.getDescricao(), item.getLocal(), item.getDataOriginal(), item.getProcedencia(), item.getTipo(), item.getStatus(), item.getPrecoBaseLicenciamento(), item.getDisponivelParaLicenciamento(), item.getItemHistorico(), item.getModalidadeId(), item.getAtletasIds(), item.getFotos() == null ? List.of() : item.getFotos().stream().map(this::toFotoDTO).toList(), item.getCriadoEm(), item.getAtualizadoEm());
+        return new ItemAcervoResponseDTO(
+                item.getId(),
+                item.getTitulo(),
+                item.getDescricao(),
+                item.getLocal(),
+                item.getDataOriginal(),
+                item.getProcedencia(),
+                item.getTipo(),
+                item.getStatus(),
+                item.getPrecoBaseLicenciamento(),
+                item.getDisponivelParaLicenciamento(),
+                item.getItemHistorico(),
+                item.getModalidadeId(),
+                item.getAtletasIds(),
+                item.getFotos() == null
+                        ? List.of()
+                        : item.getFotos().stream().map(this::toFotoDTO).collect(Collectors.toList()),
+                item.getCriadoEm(),
+                item.getAtualizadoEm()
+        );
     }
 
     private FotoDTO toFotoDTO(FotoAcervo foto) {
-        return new FotoDTO(null, foto.getPublicId(), foto.getLegenda(), foto.isDestaque(), foto.getUrlVisualizacao(), null);
+        return new FotoDTO(
+                null,
+                foto.getPublicId(),
+                foto.getLegenda(),
+                foto.isDestaque(),
+                foto.getUrlVisualizacao(),
+                null,
+                foto.getAutorNomePublico(),
+                foto.isLicenciamentoPermitido()
+        );
     }
 
     private List<FotoAcervo> mapFotos(List<FotoDTO> fotos) {
         if (fotos == null) return List.of();
+
         return fotos.stream().map(dto -> {
             FotoAcervo foto = new FotoAcervo();
             foto.setPublicId(dto.publicId() != null ? dto.publicId() : UUID.randomUUID().toString());
             foto.setUrlVisualizacao(dto.url());
             foto.setLegenda(dto.legenda());
             foto.setDestaque(Boolean.TRUE.equals(dto.ehDestaque()));
+            foto.setAutorNomePublico(dto.autorNomePublico());
+            foto.setLicenciamentoPermitido(Boolean.TRUE.equals(dto.licenciamentoPermitido()));
             return foto;
-        }).toList();
+        }).collect(Collectors.toList());
     }
 }

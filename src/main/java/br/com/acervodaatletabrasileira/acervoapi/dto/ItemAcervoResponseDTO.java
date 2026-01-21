@@ -8,33 +8,49 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * DTO de resposta pública.
- * Exibe se o item é um registro histórico ou um ativo disponível para licenciamento.
+ * DTO de resposta pública do acervo.
+ * Usado para pesquisa histórica e vitrine de licenciamento.
  */
 public record ItemAcervoResponseDTO(
+
         String id,
+
+        // Conteúdo editorial
         String titulo,
         String descricao,
         String local,
         String dataOriginal,
+
+        /**
+         * Procedência do item (texto livre)
+         */
         String procedencia,
 
+        // Tipificação e status
         TipoItemAcervo tipo,
         StatusItemAcervo status,
 
         /**
-         * Informações de Licenciamento
+         * Informações de licenciamento (quando aplicável)
          */
         BigDecimal precoBaseLicenciamento,
         Boolean disponivelParaLicenciamento,
 
-        // Novo: Para o frontend decidir o layout (Pesquisa vs. Compra)
+        /**
+         * Indica se o item pertence ao memorial histórico
+         */
         Boolean itemHistorico,
 
+        // Relacionamentos
         String modalidadeId,
         List<String> atletasIds,
+
+        /**
+         * Fotos visíveis (preview / marca d’água)
+         */
         List<FotoDTO> fotos,
 
+        // Auditoria
         Instant criadoEm,
         Instant atualizadoEm
 ) {
