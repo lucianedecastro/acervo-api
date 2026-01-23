@@ -1,5 +1,6 @@
 package br.com.acervodaatletabrasileira.acervoapi.model;
 
+import br.com.acervodaatletabrasileira.acervoapi.model.FotoPerfilAtleta;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -67,6 +68,7 @@ public class Atleta {
     private BigDecimal percentualRepasse;
     private BigDecimal comissaoPlataformaDiferenciada;
 
+    private FotoPerfilAtleta fotoPerfil;
     private String fotoDestaqueUrl;
     private String statusAtleta;
 

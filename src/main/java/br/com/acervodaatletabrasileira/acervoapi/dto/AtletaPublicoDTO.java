@@ -12,9 +12,16 @@ public record AtletaPublicoDTO(
         String biografia,
         Atleta.CategoriaAtleta categoria,
         Atleta.StatusVerificacao statusVerificacao,
+
+        // LEGADO — NÃO MEXER
         String fotoDestaqueUrl,
+
+        // NOVO — foto de perfil pública (opcional)
+        FotoPerfilPublicaDTO fotoPerfil,
+
         String statusAtleta
 ) {
+
     // Método auxiliar para converter a Model para este DTO "limpo"
     public static AtletaPublicoDTO fromModel(Atleta atleta) {
         return new AtletaPublicoDTO(
@@ -26,7 +33,18 @@ public record AtletaPublicoDTO(
                 atleta.getBiografia(),
                 atleta.getCategoria(),
                 atleta.getStatusVerificacao(),
+
+                // campo legado preservado
                 atleta.getFotoDestaqueUrl(),
+
+                // novo campo (null-safe, não quebra frontend)
+                atleta.getFotoPerfil() != null
+                        ? new FotoPerfilPublicaDTO(
+                        atleta.getFotoPerfil().getPublicId(),
+                        atleta.getFotoPerfil().getUrl()
+                )
+                        : null,
+
                 atleta.getStatusAtleta()
         );
     }
