@@ -4,6 +4,7 @@ import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaFormDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPerfilDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPublicoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
+import br.com.acervodaatletabrasileira.acervoapi.model.FotoPerfilAtleta;
 import br.com.acervodaatletabrasileira.acervoapi.repository.AtletaRepository;
 import br.com.acervodaatletabrasileira.acervoapi.repository.ItemAcervoRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -60,7 +61,7 @@ public class AtletaService {
                         acervoRepository.findByAtletasIdsContaining(atleta.getId())
                                 .collectList()
                                 .map(itens -> new AtletaPerfilDTO(
-                                        AtletaPublicoDTO.fromModel(atleta), // Conversão Protetiva
+                                        AtletaPublicoDTO.fromModel(atleta),
                                         itens
                                 ))
                 );
@@ -137,7 +138,7 @@ public class AtletaService {
 
     /* ==========================
        ATUALIZAÇÃO (ADMIN)
-       ========================= */
+       ========================== */
 
     public Mono<Atleta> update(String id, AtletaFormDTO dto) {
         return atletaRepository.findById(id)
@@ -181,6 +182,28 @@ public class AtletaService {
                     existente.setAtualizadoEm(Instant.now());
 
                     return atletaRepository.save(existente);
+                });
+    }
+
+    /* ==========================
+       FOTO DE PERFIL (NOVO – SEM QUEBRA)
+       ========================== */
+
+    /**
+     * Atualiza exclusivamente a foto de perfil da atleta.
+     * Método isolado para evitar acoplamento com o fluxo de atualização geral.
+     *
+     * Também mantém o campo legado fotoDestaqueUrl sincronizado
+     * para compatibilidade com consumidores antigos.
+     */
+    public Mono<Atleta> atualizarFotoPerfil(String atletaId, FotoPerfilAtleta fotoPerfil) {
+        return atletaRepository.findById(atletaId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrada")))
+                .flatMap(atleta -> {
+                    atleta.setFotoPerfil(fotoPerfil);
+                    atleta.setFotoDestaqueUrl(fotoPerfil.getUrl()); // compatibilidade
+                    atleta.setAtualizadoEm(Instant.now());
+                    return atletaRepository.save(atleta);
                 });
     }
 
