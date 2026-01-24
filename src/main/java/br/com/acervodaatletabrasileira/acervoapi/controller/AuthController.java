@@ -45,9 +45,21 @@ public class AuthController {
     public Mono<ResponseEntity<Map<String, String>>> login(
             @RequestBody AuthRequest authRequest
     ) {
+        // Normalização defensiva do identificador (evita email vazio ou com espaços)
+        String identifier = authRequest.email() != null
+                ? authRequest.email().trim()
+                : "";
+
+        if (identifier.isBlank()) {
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Credenciais inválidas ou usuário não encontrado")));
+        }
+
         // O authService chama o ReactiveAuthenticationManager,
         // que usa o UserDetailsServiceImpl (que busca nas duas coleções).
-        return authService.authenticate(authRequest)
+        return authService.authenticate(
+                        new AuthRequest(identifier, authRequest.senha())
+                )
                 .map(token -> ResponseEntity.ok(Map.of(
                         "token", token,
                         "type", "Bearer",

@@ -43,7 +43,12 @@ public class DashboardController {
     @PreAuthorize("hasRole('ATLETA')")
     public Mono<AtletaDashboardStatsDTO> getAtletaDashboard(Principal principal) {
         // O getName() contém o identificador (e-mail ou ID) vindo do JWT
-        String identificador = principal.getName();
-        return service.getAtletaStats(identificador);
+        String identificador = principal != null ? principal.getName() : null;
+
+        if (identificador == null || identificador.isBlank()) {
+            return Mono.error(new IllegalStateException("Identificador da atleta inválido no token"));
+        }
+
+        return service.getAtletaStats(identificador.trim());
     }
 }

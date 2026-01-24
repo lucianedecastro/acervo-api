@@ -26,9 +26,19 @@ public class AuthService {
      * tanto na coleção de Admins quanto na de Atletas.
      */
     public Mono<String> authenticate(AuthRequest authRequest) {
+
+        // Normalização defensiva do identificador
+        String identifier = authRequest.email() != null
+                ? authRequest.email().trim()
+                : "";
+
+        if (identifier.isBlank() || authRequest.senha() == null) {
+            return Mono.error(new RuntimeException("Credenciais inválidas ou usuário não encontrado"));
+        }
+
         return authenticationManager.authenticate(
                         new UsernamePasswordAuthenticationToken(
-                                authRequest.email(),
+                                identifier,
                                 authRequest.senha()
                         )
                 )
@@ -37,6 +47,8 @@ public class AuthService {
                     // O objeto 'authentication' agora contém o Principal (Admin ou Atleta) e a Role.
                     return jwtService.generateToken(authentication);
                 })
-                .onErrorResume(e -> Mono.error(new RuntimeException("Credenciais inválidas ou usuário não encontrado")));
+                .onErrorResume(e ->
+                        Mono.error(new RuntimeException("Credenciais inválidas ou usuário não encontrado"))
+                );
     }
 }

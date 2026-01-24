@@ -39,7 +39,12 @@ public class AtletaController {
     )
     @GetMapping("/me")
     public Mono<ResponseEntity<Atleta>> obterMeuPerfil(Principal principal) {
-        String identificador = principal.getName();
+
+        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+        }
+
+        String identificador = principal.getName().trim();
 
         // Tenta buscar por ID primeiro (caso o token envie o ID do MongoDB)
         return atletaService.findById(identificador)

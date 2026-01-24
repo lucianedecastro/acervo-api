@@ -38,10 +38,6 @@ public class AtletaService {
        BUSCA POR IDENTIDADE (DASHBOARD)
        ========================== */
 
-    /**
-     * Busca uma atleta pelo e-mail. Usado no Dashboard (/me)
-     * para identificar a atleta logada via Token JWT.
-     */
     public Mono<Atleta> findByEmail(String email) {
         return atletaRepository.findByEmail(email);
     }
@@ -50,10 +46,6 @@ public class AtletaService {
        BUSCA AGREGADA (O COMBO - PROTEGIDO LGPD)
        ========================== */
 
-    /**
-     * Busca o perfil completo: Converte Atleta para AtletaPublicoDTO
-     * para esconder dados sensíveis (CPF, Email, Pix, etc) na rota pública.
-     */
     public Mono<AtletaPerfilDTO> getPerfilCompletoBySlug(String slug) {
         return atletaRepository.findBySlug(slug)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrada com o slug: " + slug)))
@@ -111,14 +103,6 @@ public class AtletaService {
         atleta.setContratoAssinado(dto.contratoAssinado());
         atleta.setLinkContratoDigital(dto.linkContratoDigital());
 
-        if (atleta.getCategoria() == Atleta.CategoriaAtleta.HISTORICA) {
-            atleta.setStatusVerificacao(Atleta.StatusVerificacao.MEMORIAL_PUBLICO);
-            atleta.setStatusAtleta("MEMORIAL");
-        } else {
-            atleta.setStatusVerificacao(Atleta.StatusVerificacao.PENDENTE);
-            atleta.setStatusAtleta(dto.statusAtleta() != null ? dto.statusAtleta() : "AGUARDANDO_CONTRATO");
-        }
-
         atleta.setDadosContato(dto.dadosContato());
         atleta.setTipoChavePix(dto.tipoChavePix());
         atleta.setChavePix(dto.chavePix());
@@ -144,14 +128,16 @@ public class AtletaService {
         return atletaRepository.findById(id)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrada")))
                 .flatMap(existente -> {
+
                     if (!existente.getNome().equalsIgnoreCase(dto.nome())) {
                         existente.setSlug(generateSlug(dto.nome()));
                     }
 
                     existente.setNome(dto.nome());
                     existente.setNomeSocial(dto.nomeSocial());
-                    existente.setCpf(dto.cpf());
-                    existente.setEmail(dto.email());
+
+                    // CAMPOS SENSÍVEIS NÃO DEVEM SER ALTERADOS PELO ADMIN
+                    // email e cpf são mantidos como estão
 
                     if (dto.senha() != null && !dto.senha().isBlank()) {
                         existente.setSenha(passwordEncoder.encode(dto.senha()));
@@ -189,19 +175,12 @@ public class AtletaService {
        FOTO DE PERFIL (NOVO – SEM QUEBRA)
        ========================== */
 
-    /**
-     * Atualiza exclusivamente a foto de perfil da atleta.
-     * Método isolado para evitar acoplamento com o fluxo de atualização geral.
-     *
-     * Também mantém o campo legado fotoDestaqueUrl sincronizado
-     * para compatibilidade com consumidores antigos.
-     */
     public Mono<Atleta> atualizarFotoPerfil(String atletaId, FotoPerfilAtleta fotoPerfil) {
         return atletaRepository.findById(atletaId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrada")))
                 .flatMap(atleta -> {
                     atleta.setFotoPerfil(fotoPerfil);
-                    atleta.setFotoDestaqueUrl(fotoPerfil.getUrl()); // compatibilidade
+                    atleta.setFotoDestaqueUrl(fotoPerfil.getUrl());
                     atleta.setAtualizadoEm(Instant.now());
                     return atletaRepository.save(atleta);
                 });
