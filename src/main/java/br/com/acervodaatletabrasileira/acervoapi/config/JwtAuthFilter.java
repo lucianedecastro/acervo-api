@@ -55,9 +55,12 @@ public class JwtAuthFilter implements WebFilter {
                                             userDetails.getAuthorities()
                                     );
 
-                            // 4. Injeta no Contexto Reativo e continua a filtragem
+                            // 4. Injeta no Contexto Reativo SEM consumir o body
                             return chain.filter(exchange)
-                                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
+                                    .contextWrite(
+                                            ReactiveSecurityContextHolder
+                                                    .withAuthentication(authentication)
+                                    );
                         }
                         return chain.filter(exchange);
                     })

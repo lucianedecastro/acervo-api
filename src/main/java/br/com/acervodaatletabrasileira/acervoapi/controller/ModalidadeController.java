@@ -82,17 +82,23 @@ public class ModalidadeController {
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @PutMapping("/{id}")
-    public Mono<ResponseEntity<Modalidade>> atualizar(
+    public Mono<Modalidade> atualizar(
             @PathVariable String id,
-            @RequestBody ModalidadeDTO dto
+            @RequestBody(required = false) Mono<ModalidadeDTO> dtoMono
     ) {
-        return modalidadeService.update(id, dto)
-                .map(ResponseEntity::ok)
-                .onErrorResume(
-                        IllegalArgumentException.class,
-                        e -> Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).build())
-                );
+        return Mono.justOrEmpty(dtoMono)
+                .flatMap(mono -> mono)
+                .switchIfEmpty(Mono.just(new ModalidadeDTO(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                )))
+                .flatMap(dto -> modalidadeService.update(id, dto));
     }
+
 
     @Operation(
             summary = "Remove uma modalidade",

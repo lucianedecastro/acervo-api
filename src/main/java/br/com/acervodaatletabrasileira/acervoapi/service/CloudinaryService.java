@@ -77,4 +77,24 @@ public class CloudinaryService {
             }
         }).subscribeOn(Schedulers.boundedElastic());
     }
+
+    /* ==========================
+       UTIL (Validação de Existência)
+       ========================== */
+
+    /**
+     * Verifica se um recurso existe no Cloudinary a partir do publicId.
+     * Usado para validação de integridade antes de persistir referências.
+     */
+    public Mono<Boolean> resourceExists(String publicId) {
+        return Mono.fromCallable(() -> {
+                    try {
+                        cloudinary.api().resource(publicId, ObjectUtils.emptyMap());
+                        return true;
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
+                .subscribeOn(Schedulers.boundedElastic());
+    }
 }

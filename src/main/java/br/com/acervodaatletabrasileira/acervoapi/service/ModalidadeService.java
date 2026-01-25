@@ -3,6 +3,8 @@ package br.com.acervodaatletabrasileira.acervoapi.service;
 import br.com.acervodaatletabrasileira.acervoapi.dto.ModalidadeDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Modalidade;
 import br.com.acervodaatletabrasileira.acervoapi.repository.ModalidadeRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -15,12 +17,20 @@ import java.util.regex.Pattern;
 @Service
 public class ModalidadeService {
 
+    private static final Logger log = LoggerFactory.getLogger(ModalidadeService.class);
+
     private final ModalidadeRepository repository;
+    private final CloudinaryService cloudinaryService;
+
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
 
-    public ModalidadeService(ModalidadeRepository repository) {
+    public ModalidadeService(
+            ModalidadeRepository repository,
+            CloudinaryService cloudinaryService
+    ) {
         this.repository = repository;
+        this.cloudinaryService = cloudinaryService;
     }
 
     /* ==========================
@@ -63,7 +73,8 @@ public class ModalidadeService {
         modalidade.setCriadoEm(Instant.now());
         modalidade.setAtualizadoEm(Instant.now());
 
-        return repository.save(modalidade);
+        return validateFotoDestaqueIfPresent(dto.fotoDestaquePublicId())
+                .then(repository.save(modalidade));
     }
 
     /* ==========================
@@ -75,25 +86,31 @@ public class ModalidadeService {
                 .switchIfEmpty(
                         Mono.error(new IllegalArgumentException("Modalidade não encontrada com o ID: " + id))
                 )
-                .flatMap(existing -> {
-                    // Atualiza o slug apenas se o nome realmente mudou
-                    if (dto.nome() != null && !existing.getNome().equalsIgnoreCase(dto.nome())) {
-                        existing.setSlug(generateSlug(dto.nome()));
-                        existing.setNome(dto.nome());
-                    }
+                .flatMap(existing ->
+                        validateFotoDestaqueIfPresent(dto.fotoDestaquePublicId())
+                                .then(Mono.fromCallable(() -> {
 
-                    if (dto.historia() != null) existing.setHistoria(dto.historia());
-                    if (dto.pictogramaUrl() != null) existing.setPictogramaUrl(dto.pictogramaUrl());
-                    if (dto.ativa() != null) existing.setAtiva(dto.ativa());
+                                    // Atualiza o slug apenas se o nome realmente mudou
+                                    if (dto.nome() != null && !existing.getNome().equalsIgnoreCase(dto.nome())) {
+                                        existing.setSlug(generateSlug(dto.nome()));
+                                        existing.setNome(dto.nome());
+                                    }
 
-                    // Atualiza listas de fotos e destaque se vierem no DTO
-                    if (dto.fotos() != null) existing.setFotos(dto.fotos());
-                    if (dto.fotoDestaquePublicId() != null) existing.setFotoDestaquePublicId(dto.fotoDestaquePublicId());
+                                    if (dto.historia() != null) existing.setHistoria(dto.historia());
+                                    if (dto.pictogramaUrl() != null) existing.setPictogramaUrl(dto.pictogramaUrl());
+                                    if (dto.ativa() != null) existing.setAtiva(dto.ativa());
 
-                    existing.setAtualizadoEm(Instant.now());
+                                    // Atualiza listas de fotos e destaque se vierem no DTO
+                                    if (dto.fotos() != null) existing.setFotos(dto.fotos());
+                                    if (dto.fotoDestaquePublicId() != null) {
+                                        existing.setFotoDestaquePublicId(dto.fotoDestaquePublicId());
+                                    }
 
-                    return repository.save(existing);
-                });
+                                    existing.setAtualizadoEm(Instant.now());
+                                    return existing;
+                                }))
+                )
+                .flatMap(repository::save);
     }
 
     /* ==========================
@@ -102,6 +119,36 @@ public class ModalidadeService {
 
     public Mono<Void> deleteById(String id) {
         return repository.deleteById(id);
+    }
+
+    /* ==========================
+       UTIL (Validação Cloudinary)
+       ========================== */
+
+    /**
+     * Valida se o publicId da foto de destaque existe no Cloudinary.
+     *
+     * IMPORTANTE:
+     * - Nesta fase do projeto, a validação NÃO é bloqueante.
+     * - O publicId pode ser salvo antes do upload real da imagem.
+     * - A validação definitiva ocorrerá no fluxo de upload.
+     */
+    private Mono<Void> validateFotoDestaqueIfPresent(String publicId) {
+        if (publicId == null || publicId.isBlank()) {
+            return Mono.empty();
+        }
+
+        return cloudinaryService.resourceExists(publicId)
+                .flatMap(exists -> {
+                    if (!exists) {
+                        log.warn(
+                                "Foto de destaque ainda não existe no Cloudinary para o publicId: {}. " +
+                                        "Referência será salva e o upload será tratado posteriormente.",
+                                publicId
+                        );
+                    }
+                    return Mono.empty();
+                });
     }
 
     /* ==========================
