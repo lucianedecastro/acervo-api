@@ -5,6 +5,7 @@ import br.com.acervodaatletabrasileira.acervoapi.model.Modalidade;
 import br.com.acervodaatletabrasileira.acervoapi.repository.ModalidadeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -119,6 +120,49 @@ public class ModalidadeService {
 
     public Mono<Void> deleteById(String id) {
         return repository.deleteById(id);
+    }
+
+    /* ==========================
+       UPLOAD (ADMIN – FECHAMENTO DO CICLO)
+       ========================== */
+
+    /**
+     * Realiza o upload da foto de destaque da modalidade.
+     *
+     * Fluxo:
+     * - recebe o arquivo
+     * - faz upload no Cloudinary
+     * - atualiza o publicId da modalidade
+     * - persiste no banco
+     *
+     * A validação forte da imagem ocorre aqui (upload real),
+     * e não no PUT editorial.
+     */
+    public Mono<Modalidade> uploadFotoDestaque(String modalidadeId, FilePart file) {
+        return repository.findById(modalidadeId)
+                .switchIfEmpty(
+                        Mono.error(new IllegalArgumentException("Modalidade não encontrada com o ID: " + modalidadeId))
+                )
+                .flatMap(modalidade ->
+                        cloudinaryService.uploadImagem(
+                                        file,
+                                        "modalidades/" + modalidade.getSlug()
+                                )
+                                .flatMap(result -> {
+                                    String publicId = result.get("publicId");
+
+                                    modalidade.setFotoDestaquePublicId(publicId);
+                                    modalidade.setAtualizadoEm(Instant.now());
+
+                                    log.info(
+                                            "Upload de foto de destaque realizado para modalidade '{}' com publicId '{}'",
+                                            modalidade.getNome(),
+                                            publicId
+                                    );
+
+                                    return repository.save(modalidade);
+                                })
+                );
     }
 
     /* ==========================

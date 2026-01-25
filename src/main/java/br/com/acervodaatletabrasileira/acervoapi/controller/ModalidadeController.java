@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -99,6 +100,29 @@ public class ModalidadeController {
                 .flatMap(dto -> modalidadeService.update(id, dto));
     }
 
+    /* =====================================================
+       ADMIN – UPLOAD DE FOTO DE DESTAQUE
+       ===================================================== */
+
+    @Operation(
+            summary = "Upload da foto de destaque da modalidade",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PostMapping(
+            value = "/{id}/foto-destaque/upload",
+            consumes = "multipart/form-data"
+    )
+    public Mono<ResponseEntity<Modalidade>> uploadFotoDestaque(
+            @PathVariable String id,
+            @RequestPart("file") FilePart file
+    ) {
+        return modalidadeService.uploadFotoDestaque(id, file)
+                .map(ResponseEntity::ok)
+                .onErrorResume(
+                        IllegalArgumentException.class,
+                        e -> Mono.just(ResponseEntity.badRequest().build())
+                );
+    }
 
     @Operation(
             summary = "Remove uma modalidade",
