@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.time.Instant;
 import java.util.List;
 import java.math.BigDecimal;
@@ -16,6 +17,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Document(collection = "atletas")
 public class Atleta {
+
     @Id
     private String id;
 
@@ -68,14 +70,38 @@ public class Atleta {
     private BigDecimal percentualRepasse;
     private BigDecimal comissaoPlataformaDiferenciada;
 
+    /**
+     * Foto de perfil pública da atleta (avatar).
+     * Usada em listagens, cards e identificação visual.
+     */
     private FotoPerfilAtleta fotoPerfil;
+
+    /**
+     * FOTO DE DESTAQUE (HERO) DA ATLETA
+     *
+     * - Imagem principal do perfil público
+     * - Exibida na home, página pública e destaque editorial
+     * - Upload ocorre por endpoint específico
+     */
+    private FotoPerfilAtleta fotoDestaque;
+
+    /**
+     * LEGADO — NÃO REMOVER
+     *
+     * Campo mantido apenas para compatibilidade com versões antigas
+     * e possíveis consumidores externos.
+     *
+     * NÃO deve ser usado para novos fluxos.
+     */
     private String fotoDestaqueUrl;
+
     private String statusAtleta;
 
     private Instant criadoEm;
     private Instant atualizadoEm;
 
     // --- Enums ---
+
     public enum CategoriaAtleta {
         HISTORICA, ATIVA, ESPOLIO
     }

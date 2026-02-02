@@ -23,12 +23,15 @@ public class AtletaService {
     private final AtletaRepository atletaRepository;
     private final ItemAcervoRepository acervoRepository;
     private final PasswordEncoder passwordEncoder;
+
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
 
-    public AtletaService(AtletaRepository atletaRepository,
-                         ItemAcervoRepository acervoRepository,
-                         PasswordEncoder passwordEncoder) {
+    public AtletaService(
+            AtletaRepository atletaRepository,
+            ItemAcervoRepository acervoRepository,
+            PasswordEncoder passwordEncoder
+    ) {
         this.atletaRepository = atletaRepository;
         this.acervoRepository = acervoRepository;
         this.passwordEncoder = passwordEncoder;
@@ -112,6 +115,11 @@ public class AtletaService {
         atleta.setTipoConta(dto.tipoConta());
 
         atleta.setComissaoPlataformaDiferenciada(dto.comissaoPlataformaDiferenciada());
+
+        /**
+         * LEGADO — mantido por compatibilidade
+         * NÃO usado no novo fluxo de imagens
+         */
         atleta.setFotoDestaqueUrl(dto.fotoDestaqueId());
 
         atleta.setCriadoEm(Instant.now());
@@ -163,7 +171,12 @@ public class AtletaService {
                     existente.setTipoConta(dto.tipoConta());
 
                     existente.setComissaoPlataformaDiferenciada(dto.comissaoPlataformaDiferenciada());
+
+                    /**
+                     * LEGADO — preservado
+                     */
                     existente.setFotoDestaqueUrl(dto.fotoDestaqueId());
+
                     existente.setStatusAtleta(dto.statusAtleta());
                     existente.setAtualizadoEm(Instant.now());
 
@@ -172,7 +185,7 @@ public class AtletaService {
     }
 
     /* ==========================
-       FOTO DE PERFIL (NOVO – SEM QUEBRA)
+       FOTO DE PERFIL (AVATAR)
        ========================== */
 
     public Mono<Atleta> atualizarFotoPerfil(String atletaId, FotoPerfilAtleta fotoPerfil) {
@@ -180,7 +193,20 @@ public class AtletaService {
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrada")))
                 .flatMap(atleta -> {
                     atleta.setFotoPerfil(fotoPerfil);
-                    atleta.setFotoDestaqueUrl(fotoPerfil.getUrl());
+                    atleta.setAtualizadoEm(Instant.now());
+                    return atletaRepository.save(atleta);
+                });
+    }
+
+    /* ==========================
+       FOTO DE DESTAQUE (HERO)
+       ========================== */
+
+    public Mono<Atleta> atualizarFotoDestaque(String atletaId, FotoPerfilAtleta fotoDestaque) {
+        return atletaRepository.findById(atletaId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrada")))
+                .flatMap(atleta -> {
+                    atleta.setFotoDestaque(fotoDestaque);
                     atleta.setAtualizadoEm(Instant.now());
                     return atletaRepository.save(atleta);
                 });
@@ -216,9 +242,11 @@ public class AtletaService {
 
     private String generateSlug(String input) {
         if (input == null) return null;
+
         String nowhitespace = WHITESPACE.matcher(input).replaceAll("-");
         String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD);
         String slug = NONLATIN.matcher(normalized).replaceAll("");
+
         return slug.toLowerCase(Locale.ENGLISH)
                 .replaceAll("-{2,}", "-")
                 .replaceAll("(^-|-$)", "");
