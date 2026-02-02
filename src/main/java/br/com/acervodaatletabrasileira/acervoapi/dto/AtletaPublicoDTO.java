@@ -13,17 +13,45 @@ public record AtletaPublicoDTO(
         Atleta.CategoriaAtleta categoria,
         Atleta.StatusVerificacao statusVerificacao,
 
-        // LEGADO — NÃO MEXER
+        /**
+         * FOTO DE DESTAQUE (HERO)
+         * - Novo fluxo tem prioridade
+         * - Campo legado é fallback
+         */
         String fotoDestaqueUrl,
 
-        // NOVO — foto de perfil pública (opcional)
+        /**
+         * FOTO DE PERFIL (AVATAR)
+         * - Nunca é hero
+         * - Usada apenas como fallback visual
+         */
         FotoPerfilPublicaDTO fotoPerfil,
 
         String statusAtleta
 ) {
 
-    // Método auxiliar para converter a Model para este DTO "limpo"
     public static AtletaPublicoDTO fromModel(Atleta atleta) {
+
+        /* =========================
+           FOTO DE PERFIL (AVATAR)
+           ========================= */
+        FotoPerfilPublicaDTO fotoPerfil = atleta.getFotoPerfil() != null
+                ? new FotoPerfilPublicaDTO(
+                atleta.getFotoPerfil().getPublicId(),
+                atleta.getFotoPerfil().getUrl()
+        )
+                : null;
+
+        /* =========================
+           FOTO DE DESTAQUE (HERO)
+           REGRA DEFINITIVA:
+           1. Novo fluxo
+           2. Legado
+           ========================= */
+        String fotoDestaqueUrl = atleta.getFotoDestaque() != null
+                ? atleta.getFotoDestaque().getUrl()
+                : atleta.getFotoDestaqueUrl();
+
         return new AtletaPublicoDTO(
                 atleta.getId(),
                 atleta.getNome(),
@@ -33,18 +61,8 @@ public record AtletaPublicoDTO(
                 atleta.getBiografia(),
                 atleta.getCategoria(),
                 atleta.getStatusVerificacao(),
-
-                // campo legado preservado
-                atleta.getFotoDestaqueUrl(),
-
-                // novo campo (null-safe, não quebra frontend)
-                atleta.getFotoPerfil() != null
-                        ? new FotoPerfilPublicaDTO(
-                        atleta.getFotoPerfil().getPublicId(),
-                        atleta.getFotoPerfil().getUrl()
-                )
-                        : null,
-
+                fotoDestaqueUrl,
+                fotoPerfil,
                 atleta.getStatusAtleta()
         );
     }
