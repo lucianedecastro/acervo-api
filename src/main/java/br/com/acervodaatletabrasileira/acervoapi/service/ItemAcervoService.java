@@ -175,8 +175,13 @@ public class ItemAcervoService {
                                 .flatMap(result -> {
 
                                     FotoAcervo foto = new FotoAcervo();
+
                                     foto.setPublicId((String) result.get("publicId"));
-                                    foto.setVersion((Long) result.get("version"));
+
+                                    // ✅ CORREÇÃO DO CAST (Integer → Long)
+                                    Number versionNumber = (Number) result.get("version");
+                                    foto.setVersion(versionNumber.longValue());
+
                                     foto.setUrlVisualizacao((String) result.get("url"));
                                     foto.setLegenda(metadata.legenda());
                                     foto.setDestaque(Boolean.TRUE.equals(metadata.ehDestaque()));
