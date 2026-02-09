@@ -32,9 +32,11 @@ public class ItemAcervoService {
             StatusItemAcervo.MEMORIAL
     );
 
-    public ItemAcervoService(ItemAcervoRepository repository,
-                             AtletaRepository atletaRepository,
-                             CloudinaryService cloudinaryService) {
+    public ItemAcervoService(
+            ItemAcervoRepository repository,
+            AtletaRepository atletaRepository,
+            CloudinaryService cloudinaryService
+    ) {
         this.repository = repository;
         this.atletaRepository = atletaRepository;
         this.cloudinaryService = cloudinaryService;
@@ -103,7 +105,9 @@ public class ItemAcervoService {
                         .flatMap(existente -> {
 
                             if (isAtleta && !existente.getAtletasIds().contains(idLogado)) {
-                                return Mono.error(new AccessDeniedException("Sem permissão para editar este item"));
+                                return Mono.error(
+                                        new AccessDeniedException("Sem permissão para editar este item")
+                                );
                             }
 
                             preencherDadosComuns(existente, dto);
@@ -144,7 +148,8 @@ public class ItemAcervoService {
         return cloudinaryService.uploadImagem(file, "temp")
                 .map(result -> {
                     String publicId = result.get("publicId");
-                    String urlProtegida = cloudinaryService.gerarUrlProtegidaComWatermark(publicId);
+                    String urlProtegida =
+                            cloudinaryService.gerarUrlProtegidaComWatermark(publicId);
 
                     return FotoDTO.fromUpload(
                             urlProtegida,
@@ -163,7 +168,8 @@ public class ItemAcervoService {
                                 .flatMap(result -> {
 
                                     String publicId = result.get("publicId");
-                                    String urlProtegida = cloudinaryService.gerarUrlProtegidaComWatermark(publicId);
+                                    String urlProtegida =
+                                            cloudinaryService.gerarUrlProtegidaComWatermark(publicId);
 
                                     FotoAcervo foto = new FotoAcervo();
                                     foto.setPublicId(publicId);
@@ -217,7 +223,9 @@ public class ItemAcervoService {
             item.setDisponivelParaLicenciamento(false);
             item.setPrecoBaseLicenciamento(BigDecimal.ZERO);
         } else {
-            item.setStatus(dto.status() != null ? dto.status() : StatusItemAcervo.RASCUNHO);
+            item.setStatus(dto.status() != null
+                    ? dto.status()
+                    : StatusItemAcervo.RASCUNHO);
             item.setDisponivelParaLicenciamento(dto.disponivelParaLicenciamento());
             item.setPrecoBaseLicenciamento(dto.precoBaseLicenciamento());
         }
@@ -244,7 +252,9 @@ public class ItemAcervoService {
                 item.getAtletasIds(),
                 item.getFotos() == null
                         ? List.of()
-                        : item.getFotos().stream().map(this::toFotoDTO).collect(Collectors.toList()),
+                        : item.getFotos().stream()
+                        .map(this::toFotoDTO)
+                        .collect(Collectors.toList()),
                 item.getCriadoEm(),
                 item.getAtualizadoEm()
         );
@@ -264,17 +274,27 @@ public class ItemAcervoService {
     }
 
     private List<FotoAcervo> mapFotos(List<FotoDTO> fotos) {
-        if (fotos == null) return List.of();
+
+        /* =====================================================
+           CORREÇÃO CRÍTICA:
+           Lista SEMPRE mutável para permitir uploads posteriores
+           ===================================================== */
+
+        if (fotos == null) return new ArrayList<>();
 
         return fotos.stream().map(dto -> {
             FotoAcervo foto = new FotoAcervo();
-            foto.setPublicId(dto.publicId() != null ? dto.publicId() : UUID.randomUUID().toString());
+            foto.setPublicId(
+                    dto.publicId() != null
+                            ? dto.publicId()
+                            : UUID.randomUUID().toString()
+            );
             foto.setUrlVisualizacao(dto.url());
             foto.setLegenda(dto.legenda());
             foto.setDestaque(Boolean.TRUE.equals(dto.ehDestaque()));
             foto.setAutorNomePublico(dto.autorNomePublico());
             foto.setLicenciamentoPermitido(Boolean.TRUE.equals(dto.licenciamentoPermitido()));
             return foto;
-        }).collect(Collectors.toList());
+        }).collect(Collectors.toCollection(ArrayList::new));
     }
 }
