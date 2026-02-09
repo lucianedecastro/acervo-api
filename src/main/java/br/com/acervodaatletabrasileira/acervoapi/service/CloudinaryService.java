@@ -97,4 +97,34 @@ public class CloudinaryService {
                 })
                 .subscribeOn(Schedulers.boundedElastic());
     }
+
+    /* ==========================
+       UTIL (URL PROTEGIDA COM WATERMARK)
+       ========================== */
+
+    /**
+     * Gera uma URL pública protegida a partir do publicId original.
+     * Aplica:
+     * - Redimensionamento para exibição pública
+     * - Marca d’água do Acervo
+     * - Opacidade reduzida
+     *
+     * IMPORTANTE:
+     * - O arquivo original NÃO é alterado
+     * - Apenas a URL derivada é utilizada em vitrines públicas
+     */
+    public String gerarUrlProtegidaComWatermark(String publicId) {
+        return cloudinary.url()
+                .transformation(
+                        new com.cloudinary.Transformation()
+                                .width(1200)
+                                .crop("limit")
+                                .overlay("acervo:watermark_acervo") // public_id do watermark no Cloudinary
+                                .gravity("center")
+                                .opacity(40)
+                                .flags("layer_apply")
+                )
+                .secure(true)
+                .generate(publicId);
+    }
 }

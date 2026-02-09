@@ -142,14 +142,17 @@ public class ItemAcervoService {
 
     public Mono<FotoDTO> uploadCloudinaryPuro(FilePart file) {
         return cloudinaryService.uploadImagem(file, "temp")
-                .map(result ->
-                        FotoDTO.fromUpload(
-                                result.get("url"),
-                                result.get("publicId"),
-                                "Upload avulso",
-                                false
-                        )
-                );
+                .map(result -> {
+                    String publicId = result.get("publicId");
+                    String urlProtegida = cloudinaryService.gerarUrlProtegidaComWatermark(publicId);
+
+                    return FotoDTO.fromUpload(
+                            urlProtegida,
+                            publicId,
+                            "Upload avulso",
+                            false
+                    );
+                });
     }
 
     public Mono<FotoDTO> adicionarFoto(String itemId, FilePart file, FotoDTO metadata) {
@@ -159,9 +162,12 @@ public class ItemAcervoService {
                         cloudinaryService.uploadImagem(file, "itens")
                                 .flatMap(result -> {
 
+                                    String publicId = result.get("publicId");
+                                    String urlProtegida = cloudinaryService.gerarUrlProtegidaComWatermark(publicId);
+
                                     FotoAcervo foto = new FotoAcervo();
-                                    foto.setPublicId(result.get("publicId"));
-                                    foto.setUrlVisualizacao(result.get("url"));
+                                    foto.setPublicId(publicId);
+                                    foto.setUrlVisualizacao(urlProtegida);
                                     foto.setLegenda(metadata.legenda());
                                     foto.setDestaque(Boolean.TRUE.equals(metadata.ehDestaque()));
                                     foto.setAutorNomePublico(metadata.autorNomePublico());
