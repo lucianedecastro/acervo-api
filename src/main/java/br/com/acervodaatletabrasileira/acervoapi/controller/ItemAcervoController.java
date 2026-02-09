@@ -123,6 +123,14 @@ public class ItemAcervoController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
+    /**
+     * Publica item no acervo.
+     * <p>
+     * Observação:
+     * Atualmente retorna a entidade ItemAcervo.
+     * Pode evoluir futuramente para ItemAcervoResponseDTO
+     * para alinhamento total com os endpoints públicos.
+     */
     @Operation(
             summary = "Publica item no acervo",
             security = @SecurityRequirement(name = "bearerAuth")
@@ -170,12 +178,21 @@ public class ItemAcervoController {
     public Mono<ResponseEntity<FotoDTO>> uploadFoto(
             @PathVariable String id,
             @RequestPart("file") FilePart file,
-            @RequestPart("metadata") String metadataStr
+            @RequestPart("metadata") Mono<String> metadataStr
     ) {
-        return Mono.fromCallable(() -> objectMapper.readValue(metadataStr, FotoDTO.class))
+        return metadataStr
+                .map(json -> {
+                    try {
+                        return objectMapper.readValue(json, FotoDTO.class);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Erro ao desserializar metadata", e);
+                    }
+                })
                 .flatMap(metadata -> service.adicionarFoto(id, file, metadata))
                 .map(ResponseEntity::ok)
-                .doOnError(e -> log.error("Erro no upload de foto do item {}: {}", id, e.getMessage()))
-                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest().build()));
+                .onErrorResume(e -> {
+                    log.error("Erro no upload de foto do item {}:", id, e);
+                    return Mono.just(ResponseEntity.badRequest().build());
+                });
     }
 }
