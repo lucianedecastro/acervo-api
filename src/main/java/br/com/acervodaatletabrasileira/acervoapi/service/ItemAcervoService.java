@@ -76,10 +76,6 @@ public class ItemAcervoService {
     public Mono<ItemAcervo> criar(ItemAcervoCreateDTO dto) {
         ItemAcervo item = new ItemAcervo();
 
-        /* =====================================================
-           VALIDAÇÕES CONTRATUAIS (EVITA 400 SILENCIOSO)
-           ===================================================== */
-
         if (dto.tipo() == null) {
             return Mono.error(new IllegalArgumentException("Tipo do item de acervo é obrigatório"));
         }
@@ -214,27 +210,18 @@ public class ItemAcervoService {
                 );
     }
 
-    /* =====================================================
-       MÉTODO CENTRAL
-       ===================================================== */
-
     private void preencherDadosComuns(ItemAcervo item, ItemAcervoCreateDTO dto) {
-
         item.setTitulo(dto.titulo());
         item.setDescricao(dto.descricao());
         item.setLocal(dto.local());
         item.setDataOriginal(dto.dataOriginal());
-
         item.setProcedencia(dto.procedencia());
         item.setCreditoAutoral(dto.fotografoDoador());
-
         item.setTipo(dto.tipo());
         item.setModalidadeId(dto.modalidadeId());
         item.setAtletasIds(new ArrayList<>(dto.atletasIds()));
-
         item.setCuradorResponsavel(dto.curadorResponsavel());
         item.setRestricoesUso(dto.restricoesUso());
-
         item.setFotos(mapFotos(dto.fotos()));
         item.setItemHistorico(Boolean.TRUE.equals(dto.itemHistorico()));
 
@@ -250,10 +237,6 @@ public class ItemAcervoService {
             item.setPrecoBaseLicenciamento(dto.precoBaseLicenciamento());
         }
     }
-
-    /* =====================================================
-       MAPPERS
-       ===================================================== */
 
     private ItemAcervoResponseDTO toResponseDTO(ItemAcervo item) {
         return new ItemAcervoResponseDTO(
@@ -282,11 +265,12 @@ public class ItemAcervoService {
 
     private FotoDTO toFotoDTO(FotoAcervo foto) {
         return new FotoDTO(
-                null,
+                // CORREÇÃO: Passando a URL de visualização para o primeiro parâmetro (campo 'url' no DTO)
+                foto.getUrlVisualizacao(),
                 foto.getPublicId(),
                 foto.getLegenda(),
                 foto.isDestaque(),
-                foto.getUrlVisualizacao(),
+                foto.getUrlVisualizacao(), // Mantido aqui também se o DTO tiver esse campo duplicado
                 null,
                 foto.getAutorNomePublico(),
                 foto.isLicenciamentoPermitido()
@@ -294,20 +278,10 @@ public class ItemAcervoService {
     }
 
     private List<FotoAcervo> mapFotos(List<FotoDTO> fotos) {
-
-        /* =====================================================
-           Lista SEMPRE mutável (upload posterior depende disso)
-           ===================================================== */
-
         if (fotos == null) return new ArrayList<>();
-
         return fotos.stream().map(dto -> {
             FotoAcervo foto = new FotoAcervo();
-            foto.setPublicId(
-                    dto.publicId() != null
-                            ? dto.publicId()
-                            : UUID.randomUUID().toString()
-            );
+            foto.setPublicId(dto.publicId() != null ? dto.publicId() : UUID.randomUUID().toString());
             foto.setUrlVisualizacao(dto.url());
             foto.setLegenda(dto.legenda());
             foto.setDestaque(Boolean.TRUE.equals(dto.ehDestaque()));
