@@ -77,13 +77,16 @@ public class AtletaFotoDestaqueController {
      */
     private Mono<FotoPerfilAtleta> atualizarAtletaComFotoDestaque(
             String atletaId,
-            Map<String, String> uploadResult,
+            Map<String, Object> uploadResult,
             FilePart file
     ) {
 
+        String publicId = (String) uploadResult.get("publicId");
+        String url = (String) uploadResult.get("url");
+
         FotoPerfilAtleta fotoDestaque = new FotoPerfilAtleta(
-                uploadResult.get("publicId"),
-                uploadResult.get("url"),
+                publicId,
+                url,
                 file.filename(),
                 Instant.now(),
                 true
@@ -94,4 +97,3 @@ public class AtletaFotoDestaqueController {
                 .thenReturn(fotoDestaque);
     }
 }
-

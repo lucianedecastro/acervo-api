@@ -6,7 +6,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  * Representa os metadados de uma foto do acervo.
  *
  * - publicId: identificador único no storage (Cloudinary)
- * - url: URL pública (preview / marca d’água)
+ * - version: versão do asset no Cloudinary (obrigatória para delivery)
+ * - url: URL original pública (fallback de segurança)
  *
  * Campos adicionais são opcionais e não obrigam uso no frontend.
  */
@@ -19,13 +20,22 @@ public record FotoDTO(
         // ID único no Cloudinary
         String publicId,
 
+        /**
+         * Versão do asset no Cloudinary
+         * Ex: 1770640528 → frontend monta "v1770640528"
+         */
+        Long version,
+
         // Legenda editorial
         String legenda,
 
         // Indica se é a imagem de destaque do item
         Boolean ehDestaque,
 
-        // URL pública de visualização
+        /**
+         * URL original persistida (sem marca d’água)
+         * Usada apenas como fallback de segurança
+         */
         String url,
 
         // Nome do arquivo original
@@ -48,12 +58,14 @@ public record FotoDTO(
     public static FotoDTO fromUpload(
             String url,
             String publicId,
+            Long version,
             String legenda,
             Boolean ehDestaque
     ) {
         return new FotoDTO(
                 null,
                 publicId,
+                version,
                 legenda,
                 ehDestaque,
                 url,

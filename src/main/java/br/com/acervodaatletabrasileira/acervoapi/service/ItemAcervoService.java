@@ -70,7 +70,7 @@ public class ItemAcervoService {
     }
 
     /* =====================================================
-       CRIAÇÃO
+       CRIAÇÃO / ATUALIZAÇÃO
        ===================================================== */
 
     public Mono<ItemAcervo> criar(ItemAcervoCreateDTO dto) {
@@ -85,9 +85,9 @@ public class ItemAcervoService {
         }
 
         if (dto.atletasIds() == null || dto.atletasIds().isEmpty()) {
-            return Mono.error(new IllegalArgumentException(
-                    "Item de acervo deve estar vinculado a pelo menos uma atleta"
-            ));
+            return Mono.error(
+                    new IllegalArgumentException("Item de acervo deve estar vinculado a pelo menos uma atleta")
+            );
         }
 
         preencherDadosComuns(item, dto);
@@ -96,10 +96,6 @@ public class ItemAcervoService {
 
         return repository.save(item);
     }
-
-    /* =====================================================
-       ATUALIZAÇÃO PROTEGIDA
-       ===================================================== */
 
     public Mono<ItemAcervo> atualizarProtegido(
             String id,
@@ -162,18 +158,13 @@ public class ItemAcervoService {
 
     public Mono<FotoDTO> uploadCloudinaryPuro(FilePart file) {
         return cloudinaryService.uploadImagem(file, "temp")
-                .map(result -> {
-                    String publicId = result.get("publicId");
-                    String urlProtegida =
-                            cloudinaryService.gerarUrlProtegidaComWatermark(publicId);
-
-                    return FotoDTO.fromUpload(
-                            urlProtegida,
-                            publicId,
-                            "Upload avulso",
-                            false
-                    );
-                });
+                .map(result -> FotoDTO.fromUpload(
+                        (String) result.get("url"),
+                        (String) result.get("publicId"),
+                        (Long) result.get("version"),
+                        "Upload avulso",
+                        false
+                ));
     }
 
     public Mono<FotoDTO> adicionarFoto(String itemId, FilePart file, FotoDTO metadata) {
@@ -183,19 +174,17 @@ public class ItemAcervoService {
                         cloudinaryService.uploadImagem(file, "itens")
                                 .flatMap(result -> {
 
-                                    String publicId = result.get("publicId");
-                                    String urlProtegida =
-                                            cloudinaryService.gerarUrlProtegidaComWatermark(publicId);
-
                                     FotoAcervo foto = new FotoAcervo();
-                                    foto.setPublicId(publicId);
-                                    foto.setUrlVisualizacao(urlProtegida);
+                                    foto.setPublicId((String) result.get("publicId"));
+                                    foto.setVersion((Long) result.get("version"));
+                                    foto.setUrlVisualizacao((String) result.get("url"));
                                     foto.setLegenda(metadata.legenda());
                                     foto.setDestaque(Boolean.TRUE.equals(metadata.ehDestaque()));
                                     foto.setAutorNomePublico(metadata.autorNomePublico());
                                     foto.setLicenciamentoPermitido(
                                             Boolean.TRUE.equals(metadata.licenciamentoPermitido())
                                     );
+                                    foto.setPossuiMarcaDagua(true);
 
                                     if (item.getFotos() == null) {
                                         item.setFotos(new ArrayList<>());
@@ -210,33 +199,9 @@ public class ItemAcervoService {
                 );
     }
 
-    private void preencherDadosComuns(ItemAcervo item, ItemAcervoCreateDTO dto) {
-        item.setTitulo(dto.titulo());
-        item.setDescricao(dto.descricao());
-        item.setLocal(dto.local());
-        item.setDataOriginal(dto.dataOriginal());
-        item.setProcedencia(dto.procedencia());
-        item.setCreditoAutoral(dto.fotografoDoador());
-        item.setTipo(dto.tipo());
-        item.setModalidadeId(dto.modalidadeId());
-        item.setAtletasIds(new ArrayList<>(dto.atletasIds()));
-        item.setCuradorResponsavel(dto.curadorResponsavel());
-        item.setRestricoesUso(dto.restricoesUso());
-        item.setFotos(mapFotos(dto.fotos()));
-        item.setItemHistorico(Boolean.TRUE.equals(dto.itemHistorico()));
-
-        if (Boolean.TRUE.equals(item.getItemHistorico())) {
-            item.setStatus(StatusItemAcervo.MEMORIAL);
-            item.setDisponivelParaLicenciamento(false);
-            item.setPrecoBaseLicenciamento(BigDecimal.ZERO);
-        } else {
-            item.setStatus(dto.status() != null
-                    ? dto.status()
-                    : StatusItemAcervo.RASCUNHO);
-            item.setDisponivelParaLicenciamento(dto.disponivelParaLicenciamento());
-            item.setPrecoBaseLicenciamento(dto.precoBaseLicenciamento());
-        }
-    }
+    /* =====================================================
+       MAPEAMENTOS
+       ===================================================== */
 
     private ItemAcervoResponseDTO toResponseDTO(ItemAcervo item) {
         return new ItemAcervoResponseDTO(
@@ -265,29 +230,42 @@ public class ItemAcervoService {
 
     private FotoDTO toFotoDTO(FotoAcervo foto) {
         return new FotoDTO(
-                // CORREÇÃO: Passando a URL de visualização para o primeiro parâmetro (campo 'url' no DTO)
-                foto.getUrlVisualizacao(),
-                foto.getPublicId(),
-                foto.getLegenda(),
-                foto.isDestaque(),
-                foto.getUrlVisualizacao(), // Mantido aqui também se o DTO tiver esse campo duplicado
-                null,
-                foto.getAutorNomePublico(),
-                foto.isLicenciamentoPermitido()
+                null,                       // id (não usado)
+                foto.getPublicId(),          // publicId
+                foto.getVersion(),           // version
+                foto.getLegenda(),           // legenda
+                foto.isDestaque(),           // ehDestaque
+                foto.getUrlVisualizacao(),   // url (fallback)
+                foto.getNomeArquivo(),       // filename
+                foto.getAutorNomePublico(),  // autorNomePublico
+                foto.isLicenciamentoPermitido() // licenciamentoPermitido
         );
     }
 
-    private List<FotoAcervo> mapFotos(List<FotoDTO> fotos) {
-        if (fotos == null) return new ArrayList<>();
-        return fotos.stream().map(dto -> {
-            FotoAcervo foto = new FotoAcervo();
-            foto.setPublicId(dto.publicId() != null ? dto.publicId() : UUID.randomUUID().toString());
-            foto.setUrlVisualizacao(dto.url());
-            foto.setLegenda(dto.legenda());
-            foto.setDestaque(Boolean.TRUE.equals(dto.ehDestaque()));
-            foto.setAutorNomePublico(dto.autorNomePublico());
-            foto.setLicenciamentoPermitido(Boolean.TRUE.equals(dto.licenciamentoPermitido()));
-            return foto;
-        }).collect(Collectors.toCollection(ArrayList::new));
+    private void preencherDadosComuns(ItemAcervo item, ItemAcervoCreateDTO dto) {
+        item.setTitulo(dto.titulo());
+        item.setDescricao(dto.descricao());
+        item.setLocal(dto.local());
+        item.setDataOriginal(dto.dataOriginal());
+        item.setProcedencia(dto.procedencia());
+        item.setCreditoAutoral(dto.fotografoDoador());
+        item.setTipo(dto.tipo());
+        item.setModalidadeId(dto.modalidadeId());
+        item.setAtletasIds(new ArrayList<>(dto.atletasIds()));
+        item.setCuradorResponsavel(dto.curadorResponsavel());
+        item.setRestricoesUso(dto.restricoesUso());
+        item.setItemHistorico(Boolean.TRUE.equals(dto.itemHistorico()));
+
+        if (Boolean.TRUE.equals(item.getItemHistorico())) {
+            item.setStatus(StatusItemAcervo.MEMORIAL);
+            item.setDisponivelParaLicenciamento(false);
+            item.setPrecoBaseLicenciamento(BigDecimal.ZERO);
+        } else {
+            item.setStatus(dto.status() != null
+                    ? dto.status()
+                    : StatusItemAcervo.RASCUNHO);
+            item.setDisponivelParaLicenciamento(dto.disponivelParaLicenciamento());
+            item.setPrecoBaseLicenciamento(dto.precoBaseLicenciamento());
+        }
     }
 }

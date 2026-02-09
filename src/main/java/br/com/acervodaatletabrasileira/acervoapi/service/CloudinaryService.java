@@ -27,9 +27,13 @@ public class CloudinaryService {
 
     /**
      * Faz upload de uma imagem para o Cloudinary de forma reativa.
-     * Retorna o publicId e a secureUrl (HTTPS).
+     *
+     * Retorna:
+     * - publicId  → identificador único do asset
+     * - version   → versão do asset (imutabilidade e cache)
+     * - url       → secure_url (fallback técnico)
      */
-    public Mono<Map<String, String>> uploadImagem(FilePart file, String folder) {
+    public Mono<Map<String, Object>> uploadImagem(FilePart file, String folder) {
         return file.content()
                 .reduce(new ByteArrayOutputStream(), (baos, dataBuffer) -> {
                     try {
@@ -57,8 +61,9 @@ public class CloudinaryService {
                             }
 
                             return Map.of(
-                                    "publicId", uploadResult.get("public_id").toString(),
-                                    "url", uploadResult.get("secure_url").toString()
+                                    "publicId", uploadResult.get("public_id"),
+                                    "version", uploadResult.get("version"),
+                                    "url", uploadResult.get("secure_url")
                             );
                         }).subscribeOn(Schedulers.boundedElastic())
                 );
@@ -66,7 +71,6 @@ public class CloudinaryService {
 
     /**
      * Remove uma imagem do Cloudinary pelo Public ID.
-     * Importante para manter o armazenamento limpo ao deletar itens.
      */
     public Mono<Void> deleteImagem(String publicId) {
         return Mono.<Void>fromRunnable(() -> {
@@ -82,10 +86,6 @@ public class CloudinaryService {
        UTIL (Validação de Existência)
        ========================== */
 
-    /**
-     * Verifica se um recurso existe no Cloudinary a partir do publicId.
-     * Usado para validação de integridade antes de persistir referências.
-     */
     public Mono<Boolean> resourceExists(String publicId) {
         return Mono.fromCallable(() -> {
                     try {
@@ -104,14 +104,7 @@ public class CloudinaryService {
 
     /**
      * Gera uma URL pública protegida a partir do publicId original.
-     * Aplica:
-     * - Redimensionamento para exibição pública
-     * - Marca d’água do Acervo
-     * - Opacidade reduzida
-     *
-     * IMPORTANTE:
-     * - O arquivo original NÃO é alterado
-     * - Apenas a URL derivada é utilizada em vitrines públicas
+     * OBS: método utilitário, não deve ser persistido como URL final.
      */
     public String gerarUrlProtegidaComWatermark(String publicId) {
         return cloudinary.url()
@@ -119,7 +112,7 @@ public class CloudinaryService {
                         new com.cloudinary.Transformation()
                                 .width(1200)
                                 .crop("limit")
-                                .overlay("acervo:watermark_acervo") // public_id do watermark no Cloudinary
+                                .overlay("acervo:watermark_acervo")
                                 .gravity("center")
                                 .opacity(40)
                                 .flags("layer_apply")

@@ -38,11 +38,6 @@ public class ModalidadeService {
        LEITURA
        ========================== */
 
-    /**
-     * Retorna todas as modalidades.
-     * O filtro de 'ativas' é aplicado no Controller para o público,
-     * permitindo que o Admin veja todas aqui.
-     */
     public Flux<Modalidade> findAll() {
         return repository.findAll();
     }
@@ -66,7 +61,6 @@ public class ModalidadeService {
         modalidade.setPictogramaUrl(dto.pictogramaUrl());
         modalidade.setAtiva(dto.ativa() != null ? dto.ativa() : true);
 
-        // Novos campos mapeados para garantir integridade
         modalidade.setFotos(dto.fotos());
         modalidade.setFotoDestaquePublicId(dto.fotoDestaquePublicId());
 
@@ -91,7 +85,6 @@ public class ModalidadeService {
                         validateFotoDestaqueIfPresent(dto.fotoDestaquePublicId())
                                 .then(Mono.fromCallable(() -> {
 
-                                    // Atualiza o slug apenas se o nome realmente mudou
                                     if (dto.nome() != null && !existing.getNome().equalsIgnoreCase(dto.nome())) {
                                         existing.setSlug(generateSlug(dto.nome()));
                                         existing.setNome(dto.nome());
@@ -101,7 +94,6 @@ public class ModalidadeService {
                                     if (dto.pictogramaUrl() != null) existing.setPictogramaUrl(dto.pictogramaUrl());
                                     if (dto.ativa() != null) existing.setAtiva(dto.ativa());
 
-                                    // Atualiza listas de fotos e destaque se vierem no DTO
                                     if (dto.fotos() != null) existing.setFotos(dto.fotos());
                                     if (dto.fotoDestaquePublicId() != null) {
                                         existing.setFotoDestaquePublicId(dto.fotoDestaquePublicId());
@@ -123,21 +115,9 @@ public class ModalidadeService {
     }
 
     /* ==========================
-       UPLOAD (ADMIN – FECHAMENTO DO CICLO)
+       UPLOAD (ADMIN)
        ========================== */
 
-    /**
-     * Realiza o upload da foto de destaque da modalidade.
-     *
-     * Fluxo:
-     * - recebe o arquivo
-     * - faz upload no Cloudinary
-     * - atualiza o publicId da modalidade
-     * - persiste no banco
-     *
-     * A validação forte da imagem ocorre aqui (upload real),
-     * e não no PUT editorial.
-     */
     public Mono<Modalidade> uploadFotoDestaque(String modalidadeId, FilePart file) {
         return repository.findById(modalidadeId)
                 .switchIfEmpty(
@@ -149,7 +129,8 @@ public class ModalidadeService {
                                         "modalidades/" + modalidade.getSlug()
                                 )
                                 .flatMap(result -> {
-                                    String publicId = result.get("publicId");
+
+                                    String publicId = (String) result.get("publicId");
 
                                     modalidade.setFotoDestaquePublicId(publicId);
                                     modalidade.setAtualizadoEm(Instant.now());
@@ -169,14 +150,6 @@ public class ModalidadeService {
        UTIL (Validação Cloudinary)
        ========================== */
 
-    /**
-     * Valida se o publicId da foto de destaque existe no Cloudinary.
-     *
-     * IMPORTANTE:
-     * - Nesta fase do projeto, a validação NÃO é bloqueante.
-     * - O publicId pode ser salvo antes do upload real da imagem.
-     * - A validação definitiva ocorrerá no fluxo de upload.
-     */
     private Mono<Void> validateFotoDestaqueIfPresent(String publicId) {
         if (publicId == null || publicId.isBlank()) {
             return Mono.empty();
@@ -207,7 +180,7 @@ public class ModalidadeService {
         String slug = NONLATIN.matcher(normalized).replaceAll("");
 
         return slug.toLowerCase(Locale.ENGLISH)
-                .replaceAll("-{2,}", "-") // Remove hifens duplos
-                .replaceAll("(^-|-$)", ""); // Remove hifens no início ou fim
+                .replaceAll("-{2,}", "-")
+                .replaceAll("(^-|-$)", "");
     }
 }

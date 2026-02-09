@@ -19,6 +19,12 @@ public class FotoAcervo {
     private String publicId;
 
     /**
+     * Versão do arquivo no storage (Cloudinary version).
+     * Usada para garantir URLs imutáveis e evitar cache incorreto.
+     */
+    private Long version;
+
+    /**
      * URL pública (marca d'água, preview ou baixa resolução)
      */
     private String urlVisualizacao;

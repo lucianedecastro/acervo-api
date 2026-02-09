@@ -78,13 +78,16 @@ public class AtletaFotoPerfilController {
      */
     private Mono<FotoPerfilAtleta> atualizarAtletaComFotoPerfil(
             String atletaId,
-            Map<String, String> uploadResult,
+            Map<String, Object> uploadResult,
             FilePart file
     ) {
 
+        String publicId = (String) uploadResult.get("publicId");
+        String url = (String) uploadResult.get("url");
+
         FotoPerfilAtleta fotoPerfil = new FotoPerfilAtleta(
-                uploadResult.get("publicId"),
-                uploadResult.get("url"),
+                publicId,
+                url,
                 file.filename(),
                 Instant.now(),
                 true
