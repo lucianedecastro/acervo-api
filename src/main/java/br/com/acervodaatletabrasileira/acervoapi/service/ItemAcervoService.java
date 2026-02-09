@@ -75,9 +75,29 @@ public class ItemAcervoService {
 
     public Mono<ItemAcervo> criar(ItemAcervoCreateDTO dto) {
         ItemAcervo item = new ItemAcervo();
+
+        /* =====================================================
+           VALIDAÇÕES CONTRATUAIS (EVITA 400 SILENCIOSO)
+           ===================================================== */
+
+        if (dto.tipo() == null) {
+            return Mono.error(new IllegalArgumentException("Tipo do item de acervo é obrigatório"));
+        }
+
+        if (dto.modalidadeId() == null || dto.modalidadeId().isBlank()) {
+            return Mono.error(new IllegalArgumentException("Modalidade do item é obrigatória"));
+        }
+
+        if (dto.atletasIds() == null || dto.atletasIds().isEmpty()) {
+            return Mono.error(new IllegalArgumentException(
+                    "Item de acervo deve estar vinculado a pelo menos uma atleta"
+            ));
+        }
+
         preencherDadosComuns(item, dto);
         item.setCriadoEm(Instant.now());
         item.setAtualizadoEm(Instant.now());
+
         return repository.save(item);
     }
 
@@ -195,7 +215,7 @@ public class ItemAcervoService {
     }
 
     /* =====================================================
-       MÉTODO CENTRAL (O QUE ESTAVA FALTANDO)
+       MÉTODO CENTRAL
        ===================================================== */
 
     private void preencherDadosComuns(ItemAcervo item, ItemAcervoCreateDTO dto) {
@@ -210,7 +230,7 @@ public class ItemAcervoService {
 
         item.setTipo(dto.tipo());
         item.setModalidadeId(dto.modalidadeId());
-        item.setAtletasIds(dto.atletasIds());
+        item.setAtletasIds(new ArrayList<>(dto.atletasIds()));
 
         item.setCuradorResponsavel(dto.curadorResponsavel());
         item.setRestricoesUso(dto.restricoesUso());
@@ -276,8 +296,7 @@ public class ItemAcervoService {
     private List<FotoAcervo> mapFotos(List<FotoDTO> fotos) {
 
         /* =====================================================
-           CORREÇÃO CRÍTICA:
-           Lista SEMPRE mutável para permitir uploads posteriores
+           Lista SEMPRE mutável (upload posterior depende disso)
            ===================================================== */
 
         if (fotos == null) return new ArrayList<>();
