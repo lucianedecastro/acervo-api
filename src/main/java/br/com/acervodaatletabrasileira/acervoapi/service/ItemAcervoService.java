@@ -182,7 +182,10 @@ public class ItemAcervoService {
                                     Number versionNumber = (Number) result.get("version");
                                     foto.setVersion(versionNumber.longValue());
 
-                                    foto.setUrlVisualizacao((String) result.get("url"));
+                                    // Arquiteturalmente, não persistimos URLs derivadas.
+                                    // A URL de exibição é sempre construída no frontend a partir de publicId + version.
+                                    foto.setUrlVisualizacao(null);
+
                                     foto.setLegenda(metadata.legenda());
                                     foto.setDestaque(Boolean.TRUE.equals(metadata.ehDestaque()));
                                     foto.setAutorNomePublico(metadata.autorNomePublico());
