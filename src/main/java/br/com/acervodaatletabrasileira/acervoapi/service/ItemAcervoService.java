@@ -6,25 +6,38 @@ import br.com.acervodaatletabrasileira.acervoapi.dto.ItemAcervoResponseDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.FotoAcervo;
 import br.com.acervodaatletabrasileira.acervoapi.model.ItemAcervo;
 import br.com.acervodaatletabrasileira.acervoapi.model.StatusItemAcervo;
+import br.com.acervodaatletabrasileira.acervoapi.model.StatusBlockchain;
+import br.com.acervodaatletabrasileira.acervoapi.model.TipoDecisao;
 import br.com.acervodaatletabrasileira.acervoapi.repository.AtletaRepository;
 import br.com.acervodaatletabrasileira.acervoapi.repository.ItemAcervoRepository;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.codec.multipart.FilePart;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
+import java.security.MessageDigest;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class ItemAcervoService {
 
     private final ItemAcervoRepository repository;
     private final AtletaRepository atletaRepository;
     private final CloudinaryService cloudinaryService;
+    private final Cloudinary cloudinary;
+    private final BlockchainService blockchainService;
+    private final GovernancaService governancaService;
 
     private static final List<StatusItemAcervo> STATUS_PUBLICOS = List.of(
             StatusItemAcervo.PUBLICADO,
@@ -35,11 +48,17 @@ public class ItemAcervoService {
     public ItemAcervoService(
             ItemAcervoRepository repository,
             AtletaRepository atletaRepository,
-            CloudinaryService cloudinaryService
+            CloudinaryService cloudinaryService,
+            Cloudinary cloudinary,
+            BlockchainService blockchainService,
+            GovernancaService governancaService
     ) {
         this.repository = repository;
         this.atletaRepository = atletaRepository;
         this.cloudinaryService = cloudinaryService;
+        this.cloudinary = cloudinary;
+        this.blockchainService = blockchainService;
+        this.governancaService = governancaService;
     }
 
     /* =====================================================
@@ -70,132 +89,168 @@ public class ItemAcervoService {
     }
 
     /* =====================================================
-       CRIAÇÃO / ATUALIZAÇÃO
+       CRIAÇÃO
        ===================================================== */
 
     public Mono<ItemAcervo> criar(ItemAcervoCreateDTO dto) {
+
+        if (dto.tipo() == null)
+            return Mono.error(new IllegalArgumentException("Tipo do item é obrigatório"));
+
+        if (dto.modalidadeId() == null || dto.modalidadeId().isBlank())
+            return Mono.error(new IllegalArgumentException("Modalidade é obrigatória"));
+
+        if (dto.atletasIds() == null || dto.atletasIds().isEmpty())
+            return Mono.error(new IllegalArgumentException("Item deve ter ao menos uma atleta vinculada"));
+
         ItemAcervo item = new ItemAcervo();
-
-        if (dto.tipo() == null) {
-            return Mono.error(new IllegalArgumentException("Tipo do item de acervo é obrigatório"));
-        }
-
-        if (dto.modalidadeId() == null || dto.modalidadeId().isBlank()) {
-            return Mono.error(new IllegalArgumentException("Modalidade do item é obrigatória"));
-        }
-
-        if (dto.atletasIds() == null || dto.atletasIds().isEmpty()) {
-            return Mono.error(
-                    new IllegalArgumentException("Item de acervo deve estar vinculado a pelo menos uma atleta")
-            );
-        }
-
         preencherDadosComuns(item, dto);
+
+        item.setStatusBlockchain(StatusBlockchain.NAO_REGISTRADO);
         item.setCriadoEm(Instant.now());
         item.setAtualizadoEm(Instant.now());
 
         return repository.save(item);
     }
 
-    public Mono<ItemAcervo> atualizarProtegido(
-            String id,
-            ItemAcervoCreateDTO dto,
-            String identificadorUsuario,
-            Set<String> roles
-    ) {
-        boolean isAtleta = roles.contains("ROLE_ATLETA");
-
-        Mono<String> donoIdMono = isAtleta
-                ? atletaRepository.findByEmail(identificadorUsuario)
-                .map(a -> a.getId())
-                .switchIfEmpty(Mono.error(new AccessDeniedException("Atleta não encontrada")))
-                : Mono.just(identificadorUsuario);
-
-        return donoIdMono.flatMap(idLogado ->
-                repository.findById(id)
-                        .switchIfEmpty(Mono.error(new IllegalArgumentException("Item não encontrado")))
-                        .flatMap(existente -> {
-
-                            if (isAtleta && !existente.getAtletasIds().contains(idLogado)) {
-                                return Mono.error(
-                                        new AccessDeniedException("Sem permissão para editar este item")
-                                );
-                            }
-
-                            preencherDadosComuns(existente, dto);
-                            existente.setAtualizadoEm(Instant.now());
-                            return repository.save(existente);
-                        })
-        );
-    }
-
     /* =====================================================
-       PUBLICAÇÃO / REMOÇÃO
+       PUBLICAÇÃO
        ===================================================== */
 
     public Mono<ItemAcervo> publicar(String id) {
         return repository.findById(id)
                 .flatMap(item -> {
+
                     item.setStatus(Boolean.TRUE.equals(item.getItemHistorico())
                             ? StatusItemAcervo.MEMORIAL
                             : StatusItemAcervo.PUBLICADO);
+
                     item.setAtualizadoEm(Instant.now());
                     return repository.save(item);
                 });
     }
 
-    public Mono<Void> remover(String id) {
-        return repository.deleteById(id);
-    }
+    /* =====================================================
+       CARIMBO INSTITUCIONAL (BLOCKCHAIN)
+       ===================================================== */
 
-    public Flux<ItemAcervo> listarTodos() {
-        return repository.findAll();
+    /**
+     * Registra na Blockchain o hash de integridade já calculado
+     * no upload da foto principal (blockchainContentHash).
+     *
+     * Ato administrativo separado da publicação, como já
+     * documentado nas diretrizes deste módulo.
+     */
+    public Mono<ItemAcervo> registrarSeloBlockchain(String id, String responsavel) {
+
+        return repository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Item não encontrado")))
+                .flatMap(item -> {
+
+                    if (item.getBlockchainContentHash() == null || item.getBlockchainContentHash().isBlank()) {
+                        return Mono.error(new IllegalStateException(
+                                "Item não possui hash de integridade gerado (nenhuma foto de destaque enviada ainda)"
+                        ));
+                    }
+
+                    if (item.getStatusBlockchain() == StatusBlockchain.REGISTRADO) {
+                        return Mono.error(new IllegalStateException(
+                                "Item já possui selo institucional registrado"
+                        ));
+                    }
+
+                    return blockchainService.registrarProvaInstitucional(
+                                    "ITEM_ACERVO", item.getId(), item.getBlockchainContentHash()
+                            )
+                            .flatMap(txHash -> {
+                                item.setBlockchainTxId(txHash);
+                                item.setDataRegistroBlockchain(Instant.now());
+                                item.setStatusBlockchain(StatusBlockchain.REGISTRADO);
+                                item.setAtualizadoEm(Instant.now());
+                                return repository.save(item);
+                            })
+                            .flatMap(itemSalvo ->
+                                    governancaService.registrarDecisao(
+                                            TipoDecisao.ADMINISTRATIVA,
+                                            "ITEM_ACERVO",
+                                            itemSalvo.getId(),
+                                            "SELO_INSTITUCIONAL_REGISTRADO",
+                                            "Item do acervo registrado na blockchain. TxId: " + itemSalvo.getBlockchainTxId(),
+                                            responsavel,
+                                            "ROLE_ADMIN"
+                                    ).thenReturn(itemSalvo)
+                            )
+                            .onErrorResume(erro -> {
+                                log.error("Falha ao registrar selo institucional do item {}", id, erro);
+                                item.setStatusBlockchain(StatusBlockchain.FALHA_REGISTRO);
+                                item.setAtualizadoEm(Instant.now());
+                                return repository.save(item).then(Mono.error(erro));
+                            });
+                });
     }
 
     /* =====================================================
-       UPLOAD E MÍDIA
+       UPLOAD COM HASH INSTITUCIONAL
        ===================================================== */
 
-    public Mono<FotoDTO> uploadCloudinaryPuro(FilePart file) {
-        return cloudinaryService.uploadImagem(file, "temp")
-                .map(result -> FotoDTO.fromUpload(
-                        (String) result.get("url"),
-                        (String) result.get("publicId"),
-                        (Long) result.get("version"),
-                        "Upload avulso",
-                        false
-                ));
-    }
+    public Mono<FotoDTO> adicionarFoto(String itemId, FilePart filePart, FotoDTO metadata) {
 
-    public Mono<FotoDTO> adicionarFoto(String itemId, FilePart file, FotoDTO metadata) {
         return repository.findById(itemId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Item não encontrado")))
                 .flatMap(item ->
-                        cloudinaryService.uploadImagem(file, "itens")
-                                .flatMap(result -> {
+
+                        Mono.fromCallable(() -> Files.createTempFile("img_" + itemId, ".tmp"))
+
+                                .flatMap(tempPath ->
+
+                                        filePart.transferTo(tempPath)
+                                                .then(Mono.fromCallable(() -> {
+
+                                                    File file = tempPath.toFile();
+                                                    String hash = calcularHashSHA256(file);
+
+                                                    Map uploadResult = cloudinary.uploader().upload(file,
+                                                            ObjectUtils.asMap(
+                                                                    "folder", "acervo/itens",
+                                                                    "public_id", UUID.randomUUID().toString()
+                                                            )
+                                                    );
+
+                                                    return new UploadComHash(uploadResult, hash, tempPath);
+
+                                                }).subscribeOn(Schedulers.boundedElastic()))
+
+                                                .doFinally(signal -> {
+                                                    try { Files.deleteIfExists(tempPath); }
+                                                    catch (Exception ignored) {}
+                                                })
+                                )
+
+                                .flatMap((UploadComHash uploadData) -> {
+
+                                    Map result = uploadData.getResult();
+                                    String hash = uploadData.getHash();
 
                                     FotoAcervo foto = new FotoAcervo();
+                                    foto.setPublicId((String) result.get("public_id"));
 
-                                    foto.setPublicId((String) result.get("publicId"));
-
-                                    // ✅ CORREÇÃO DO CAST (Integer → Long)
-                                    Number versionNumber = (Number) result.get("version");
-                                    foto.setVersion(versionNumber.longValue());
-
-                                    // Arquiteturalmente, não persistimos URLs derivadas.
-                                    // A URL de exibição é sempre construída no frontend a partir de publicId + version.
-                                    foto.setUrlVisualizacao(null);
+                                    Object versionObj = result.get("version");
+                                    foto.setVersion(versionObj instanceof Integer
+                                            ? ((Integer) versionObj).longValue()
+                                            : (Long) versionObj);
 
                                     foto.setLegenda(metadata.legenda());
                                     foto.setDestaque(Boolean.TRUE.equals(metadata.ehDestaque()));
                                     foto.setAutorNomePublico(metadata.autorNomePublico());
-                                    foto.setLicenciamentoPermitido(
-                                            Boolean.TRUE.equals(metadata.licenciamentoPermitido())
-                                    );
+                                    foto.setLicenciamentoPermitido(Boolean.TRUE.equals(metadata.licenciamentoPermitido()));
                                     foto.setPossuiMarcaDagua(true);
 
-                                    if (item.getFotos() == null) {
+                                    if (item.getFotos() == null)
                                         item.setFotos(new ArrayList<>());
+
+                                    if (Boolean.TRUE.equals(metadata.ehDestaque()) || item.getFotos().isEmpty()) {
+                                        item.setBlockchainContentHash(hash);
+                                        item.setStatusBlockchain(StatusBlockchain.NAO_REGISTRADO);
                                     }
 
                                     item.getFotos().add(foto);
@@ -208,8 +263,42 @@ public class ItemAcervoService {
     }
 
     /* =====================================================
+       HASH UTILITÁRIO
+       ===================================================== */
+
+    private String calcularHashSHA256(File file) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (FileInputStream fis = new FileInputStream(file)) {
+            byte[] buffer = new byte[1024];
+            int read;
+            while ((read = fis.read(buffer)) != -1) {
+                digest.update(buffer, 0, read);
+            }
+        }
+        byte[] bytes = digest.digest();
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes)
+            sb.append(String.format("%02x", b));
+        return sb.toString();
+    }
+
+    /* =====================================================
        MAPEAMENTOS
        ===================================================== */
+
+    private FotoDTO toFotoDTO(FotoAcervo foto) {
+        return new FotoDTO(
+                null,
+                foto.getPublicId(),
+                foto.getVersion(),
+                foto.getLegenda(),
+                foto.isDestaque(),
+                null,
+                null,
+                foto.getAutorNomePublico(),
+                foto.isLicenciamentoPermitido()
+        );
+    }
 
     private ItemAcervoResponseDTO toResponseDTO(ItemAcervo item) {
         return new ItemAcervoResponseDTO(
@@ -219,6 +308,12 @@ public class ItemAcervoService {
                 item.getLocal(),
                 item.getDataOriginal(),
                 item.getProcedencia(),
+                item.getCreditoAutoral(),
+                item.getFontePesquisa(),
+                item.getLinkFontePesquisa(),
+                item.getDominioPublico(),
+                item.getBlockchainTxId(),
+                item.getDataRegistroBlockchain(),
                 item.getTipo(),
                 item.getStatus(),
                 item.getPrecoBaseLicenciamento(),
@@ -226,31 +321,15 @@ public class ItemAcervoService {
                 item.getItemHistorico(),
                 item.getModalidadeId(),
                 item.getAtletasIds(),
-                item.getFotos() == null
-                        ? List.of()
-                        : item.getFotos().stream()
-                        .map(this::toFotoDTO)
-                        .collect(Collectors.toList()),
+                item.getFotos() == null ? List.of()
+                        : item.getFotos().stream().map(this::toFotoDTO).toList(),
                 item.getCriadoEm(),
                 item.getAtualizadoEm()
         );
     }
 
-    private FotoDTO toFotoDTO(FotoAcervo foto) {
-        return new FotoDTO(
-                null,                       // id (não usado)
-                foto.getPublicId(),          // publicId
-                foto.getVersion(),           // version
-                foto.getLegenda(),           // legenda
-                foto.isDestaque(),           // ehDestaque
-                foto.getUrlVisualizacao(),   // url (fallback)
-                foto.getNomeArquivo(),       // filename
-                foto.getAutorNomePublico(),  // autorNomePublico
-                foto.isLicenciamentoPermitido() // licenciamentoPermitido
-        );
-    }
-
     private void preencherDadosComuns(ItemAcervo item, ItemAcervoCreateDTO dto) {
+
         item.setTitulo(dto.titulo());
         item.setDescricao(dto.descricao());
         item.setLocal(dto.local());
@@ -263,17 +342,38 @@ public class ItemAcervoService {
         item.setCuradorResponsavel(dto.curadorResponsavel());
         item.setRestricoesUso(dto.restricoesUso());
         item.setItemHistorico(Boolean.TRUE.equals(dto.itemHistorico()));
+        item.setFontePesquisa(dto.fontePesquisa());
+        item.setLinkFontePesquisa(dto.linkFontePesquisa());
+        item.setDominioPublico(Boolean.TRUE.equals(dto.dominioPublico()));
 
         if (Boolean.TRUE.equals(item.getItemHistorico())) {
             item.setStatus(StatusItemAcervo.MEMORIAL);
             item.setDisponivelParaLicenciamento(false);
             item.setPrecoBaseLicenciamento(BigDecimal.ZERO);
         } else {
-            item.setStatus(dto.status() != null
-                    ? dto.status()
-                    : StatusItemAcervo.RASCUNHO);
+            item.setStatus(dto.status() != null ? dto.status() : StatusItemAcervo.RASCUNHO);
             item.setDisponivelParaLicenciamento(dto.disponivelParaLicenciamento());
             item.setPrecoBaseLicenciamento(dto.precoBaseLicenciamento());
         }
+    }
+
+    /* =====================================================
+       CLASSE INTERNA AUXILIAR
+       ===================================================== */
+
+    private static class UploadComHash {
+        private final Map result;
+        private final String hash;
+        private final Path tempPath;
+
+        public UploadComHash(Map result, String hash, Path tempPath) {
+            this.result = result;
+            this.hash = hash;
+            this.tempPath = tempPath;
+        }
+
+        public Map getResult() { return result; }
+        public String getHash() { return hash; }
+        public Path getTempPath() { return tempPath; }
     }
 }

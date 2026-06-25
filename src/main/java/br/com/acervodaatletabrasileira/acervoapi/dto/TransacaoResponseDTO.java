@@ -11,5 +11,6 @@ public record TransacaoResponseDTO(
         BigDecimal valorRepasseAtleta,
         Instant dataTransacao,
         String status,
-        String tipoLicenca
+        String tipoLicenca,
+        String linkPagamento
 ) {}

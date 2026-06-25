@@ -13,9 +13,6 @@ import java.util.List;
 /**
  * Documento jurídico que comprova cessão ou autorização
  * de direitos autorais e/ou direitos de imagem.
- *
- * É genérico, reutilizável e aplicável a atletas, fotógrafas,
- * instituições ou outros autores.
  */
 @Data
 @NoArgsConstructor
@@ -34,7 +31,6 @@ public class DocumentoDireitos {
 
     /**
      * Descrição resumida do documento
-     * (ex: "Cessão de imagem – Atleta X – Jogos 2004")
      */
     private String descricao;
 
@@ -42,80 +38,60 @@ public class DocumentoDireitos {
        VÍNCULOS (TODOS OPCIONAIS)
        ===================================================== */
 
-    /**
-     * Item de acervo ao qual o documento se refere
-     */
     @Indexed
     private String itemAcervoId;
 
-    /**
-     * Foto específica (Cloudinary publicId), quando aplicável
-     */
     private String fotoPublicId;
 
-    /**
-     * Atletas envolvidas no documento
-     */
     private List<String> atletasIds;
 
-    /**
-     * Autor do material (fotógrafa, agência, instituição etc)
-     */
     @Indexed
     private String autorId;
 
-    /**
-     * Nome público do autor (exibível no frontend)
-     */
     private String autorNomePublico;
 
     /* =====================================================
        DOCUMENTO DIGITAL
        ===================================================== */
 
-    /**
-     * URL ou identificador do PDF assinado no storage
-     */
     private String urlDocumento;
 
     /**
-     * Hash do documento para auditoria e integridade
+     * Hash do documento para auditoria e integridade.
+     * Mapeado para findByHashConteudo no Repository.
      */
-    private String hashDocumento;
+    @Indexed
+    private String hashConteudo;
+
+    private Boolean assinaturaDigitalValida;
+
+    /* =====================================================
+       AUDITORIA E INTEGRIDADE (INCREMENTO)
+       ===================================================== */
 
     /**
-     * Indica se a assinatura digital foi validada
+     * Registro da validação jurídica na Blockchain.
      */
-    private Boolean assinaturaDigitalValida;
+    @Indexed
+    private String blockchainTxId;
+
+    /**
+     * Data em que o selo de imutabilidade foi gerado.
+     */
+    private Instant dataRegistroBlockchain;
 
     /* =====================================================
        REGRAS DE USO E LIMITES
        ===================================================== */
 
-    /**
-     * Indica se o documento permite uso comercial
-     */
     private Boolean permiteUsoComercial;
 
-    /**
-     * Finalidades de uso permitidas
-     * (ex: PESQUISA, EDITORIAL, COMERCIAL)
-     */
     private List<FinalidadeUso> finalidadesPermitidas;
 
-    /**
-     * Territórios nos quais o uso é permitido
-     */
     private List<TerritorioUso> territoriosPermitidos;
 
-    /**
-     * Restrições adicionais livres
-     */
     private String restricoesUso;
 
-    /**
-     * Data limite de validade do documento
-     */
     @Indexed
     private Instant validoAte;
 
@@ -135,9 +111,6 @@ public class DocumentoDireitos {
     private Instant criadoEm;
     private Instant atualizadoEm;
 
-    /**
-     * Admin ou responsável jurídico que validou o documento
-     */
     private String responsavelValidacao;
 
     /* =====================================================
@@ -177,9 +150,6 @@ public class DocumentoDireitos {
        REGRAS DE NEGÓCIO
        ===================================================== */
 
-    /**
-     * Regra central de autorização para licenciamento
-     */
     public boolean permiteLicenciamento() {
         return Boolean.TRUE.equals(permiteUsoComercial)
                 && status == StatusDocumentoDireitos.VALIDADO

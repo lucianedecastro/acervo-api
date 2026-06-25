@@ -20,9 +20,6 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Set;
-import java.util.stream.Collectors;
-
 @Slf4j
 @RestController
 @RequestMapping("/acervo")
@@ -30,10 +27,11 @@ import java.util.stream.Collectors;
         name = "Acervo da Atleta Brasileira",
         description = """
                 Infraestrutura de preservação, pesquisa histórica e licenciamento.
-
-                - Pesquisa Histórica
-                - Curadoria Digital
-                - Licenciamento Jurídico e Financeiro
+                
+                Diretriz Institucional:
+                - Blockchain é utilizada exclusivamente como camada de governança
+                - Registro imutável NÃO ocorre automaticamente na publicação
+                - O carimbo institucional é um ato administrativo separado
                 """
 )
 public class ItemAcervoController {
@@ -81,17 +79,19 @@ public class ItemAcervoController {
        ===================================================== */
 
     @Operation(
-            summary = "Lista todos os itens (inclui rascunhos)",
+            summary = "Lista todos os itens (Dashboard Admin)",
+            description = "Retorna os itens visíveis. Endpoint administrativo temporário.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
-    public Flux<ItemAcervo> listarTodos() {
-        return service.listarTodos();
+    public Flux<ItemAcervoResponseDTO> listarAdmin() {
+        return service.listarPublicados();
     }
 
     @Operation(
             summary = "Cria novo item de acervo",
+            description = "Cria o registro inicial. O registro em Blockchain é um ato institucional separado.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @PostMapping
@@ -101,38 +101,17 @@ public class ItemAcervoController {
         return service.criar(dto);
     }
 
-    @Operation(
-            summary = "Atualiza item (proteção por papel e propriedade)",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA', 'FOTOGRAFA')")
-    public Mono<ResponseEntity<ItemAcervo>> atualizar(
-            @PathVariable String id,
-            @RequestBody ItemAcervoCreateDTO dto,
-            Authentication authentication
-    ) {
-        String identificador = authentication.getName();
-        Set<String> roles = authentication.getAuthorities()
-                .stream()
-                .map(a -> a.getAuthority())
-                .collect(Collectors.toSet());
-
-        return service.atualizarProtegido(id, dto, identificador, roles)
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
-    }
-
     /**
      * Publica item no acervo.
-     * <p>
-     * Observação:
-     * Atualmente retorna a entidade ItemAcervo.
-     * Pode evoluir futuramente para ItemAcervoResponseDTO
-     * para alinhamento total com os endpoints públicos.
+     *
+     * IMPORTANTE:
+     * A publicação torna o item visível.
+     * O registro imutável na Blockchain é um ato institucional
+     * separado, realizado via endpoint específico de governança.
      */
     @Operation(
             summary = "Publica item no acervo",
+            description = "Torna o item visível. Não realiza registro automático na Blockchain.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @PostMapping("/{id}/publicar")
@@ -143,34 +122,34 @@ public class ItemAcervoController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
+    /**
+     * Endpoint específico de governança citado no comentário acima:
+     * registra o hash de integridade (gerado no upload da foto)
+     * na Blockchain. Ato administrativo, deliberadamente manual.
+     */
     @Operation(
-            summary = "Remove item do acervo",
+            summary = "Registra o selo institucional (Blockchain) do item",
+            description = "Grava na Blockchain o hash de integridade já calculado no upload da foto principal.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PostMapping("/{id}/registrar-blockchain")
     @PreAuthorize("hasRole('ADMIN')")
-    public Mono<Void> remover(@PathVariable String id) {
-        return service.remover(id);
+    public Mono<ResponseEntity<ItemAcervo>> registrarSeloBlockchain(
+            @PathVariable String id,
+            Authentication authentication
+    ) {
+        return service.registrarSeloBlockchain(id, authentication.getName())
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
     /* =====================================================
-       GESTÃO DE ARQUIVOS
+       GESTÃO DE ARQUIVOS (COM HASHING AUTOMÁTICO)
        ===================================================== */
 
     @Operation(
-            summary = "Upload avulso para o Cloudinary",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA', 'FOTOGRAFA')")
-    public Mono<ResponseEntity<FotoDTO>> uploadAvulso(@RequestPart("file") FilePart file) {
-        return service.uploadCloudinaryPuro(file)
-                .map(ResponseEntity::ok);
-    }
-
-    @Operation(
-            summary = "Adiciona foto a um item do acervo",
+            summary = "Adiciona foto a um item e gera Hash de Integridade",
+            description = "Calcula o SHA-256 do arquivo antes do upload.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @PostMapping(value = "/{id}/fotos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

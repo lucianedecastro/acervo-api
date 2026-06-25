@@ -34,5 +34,9 @@ public record PropostaLicenciamentoDTO(
          * Prazo de uso em meses
          * (null = uso pontual / sem vigência definida)
          */
-        Integer prazoMeses
+        Integer prazoMeses,
+
+        String nomeLicenciado,
+
+        String documentoIdentificadorLicenciado
 ) {}

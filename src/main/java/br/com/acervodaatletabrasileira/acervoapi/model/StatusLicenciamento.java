@@ -1,7 +1,12 @@
 package br.com.acervodaatletabrasileira.acervoapi.model;
 
 /**
- * Ciclo de vida de um licenciamento.
+ * Ciclo de vida jurídico de um licenciamento.
+ *
+ * IMPORTANTE:
+ * Este enum controla apenas o estado jurídico do licenciamento.
+ * O registro em Blockchain é tratado separadamente
+ * via campos específicos (blockchainTxId e dataRegistroBlockchain).
  */
 public enum StatusLicenciamento {
 
@@ -12,4 +17,3 @@ public enum StatusLicenciamento {
     CANCELADO,           // Cancelado administrativamente
     FINALIZADO           // Licenciamento expirado
 }
-

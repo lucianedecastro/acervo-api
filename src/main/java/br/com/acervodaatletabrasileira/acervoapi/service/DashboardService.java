@@ -47,7 +47,16 @@ public class DashboardService {
      */
     public Mono<AdminDashboardStatsDTO> getAdminStats() {
         return configRepository.findById(CONFIG_ID)
-                .defaultIfEmpty(new ConfiguracaoFiscal(CONFIG_ID, new BigDecimal("0.85"), new BigDecimal("0.15"), "Padrão", Instant.now(), "SYSTEM"))
+                .defaultIfEmpty(new ConfiguracaoFiscal(
+                        CONFIG_ID,
+                        new BigDecimal("0.85"),
+                        new BigDecimal("0.15"),
+                        BigDecimal.ZERO, // taxaPreservacaoHistorica (Novo)
+                        BigDecimal.ZERO, // custoFixoBlockchain (Novo)
+                        "Padrão",
+                        Instant.now(),
+                        "SYSTEM"
+                ))
                 .flatMap(config -> Mono.zip(
                         atletaRepository.count(),
                         itemRepository.count(),

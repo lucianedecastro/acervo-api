@@ -50,10 +50,21 @@ public interface DocumentoDireitosRepository
     );
 
     /* =====================================================
-       AUDITORIA
+       AUDITORIA E INTEGRIDADE (INCREMENTO)
        ===================================================== */
 
     Flux<DocumentoDireitos> findByResponsavelValidacao(
             String responsavelValidacao
     );
+
+    /**
+     * Busca um documento pelo seu Hash SHA-256 único.
+     * Essencial para validar se o arquivo enviado é idêntico ao registrado.
+     */
+    Mono<DocumentoDireitos> findByHashConteudo(String hashConteudo);
+
+    /**
+     * Busca a prova de validade jurídica na Blockchain.
+     */
+    Mono<DocumentoDireitos> findByBlockchainTxId(String blockchainTxId);
 }

@@ -3,6 +3,7 @@ package br.com.acervodaatletabrasileira.acervoapi.service;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaFormDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPerfilDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPublicoDTO;
+import br.com.acervodaatletabrasileira.acervoapi.dto.SubcontaPagamentoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
 import br.com.acervodaatletabrasileira.acervoapi.model.FotoPerfilAtleta;
 import br.com.acervodaatletabrasileira.acervoapi.repository.AtletaRepository;
@@ -14,8 +15,12 @@ import reactor.core.publisher.Mono;
 
 import java.text.Normalizer;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Pattern;
+
+import br.com.acervodaatletabrasileira.acervoapi.service.DocumentoLegalService;
 
 @Service
 public class AtletaService {
@@ -23,6 +28,7 @@ public class AtletaService {
     private final AtletaRepository atletaRepository;
     private final ItemAcervoRepository acervoRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AsaasService asaasService;
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
@@ -30,11 +36,13 @@ public class AtletaService {
     public AtletaService(
             AtletaRepository atletaRepository,
             ItemAcervoRepository acervoRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            AsaasService asaasService
     ) {
         this.atletaRepository = atletaRepository;
         this.acervoRepository = acervoRepository;
         this.passwordEncoder = passwordEncoder;
+        this.asaasService = asaasService;
     }
 
     /* ==========================
@@ -46,7 +54,7 @@ public class AtletaService {
     }
 
     /* ==========================
-       BUSCA AGREGADA (O COMBO - PROTEGIDO LGPD)
+       BUSCA AGREGADA (PERFIL COMPLETO)
        ========================== */
 
     public Mono<AtletaPerfilDTO> getPerfilCompletoBySlug(String slug) {
@@ -83,6 +91,7 @@ public class AtletaService {
        ========================== */
 
     public Mono<Atleta> create(AtletaFormDTO dto) {
+
         Atleta atleta = new Atleta();
 
         atleta.setNome(dto.nome());
@@ -116,10 +125,6 @@ public class AtletaService {
 
         atleta.setComissaoPlataformaDiferenciada(dto.comissaoPlataformaDiferenciada());
 
-        /**
-         * LEGADO — mantido por compatibilidade
-         * NÃO usado no novo fluxo de imagens
-         */
         atleta.setFotoDestaqueUrl(dto.fotoDestaqueId());
 
         atleta.setCriadoEm(Instant.now());
@@ -133,6 +138,7 @@ public class AtletaService {
        ========================== */
 
     public Mono<Atleta> update(String id, AtletaFormDTO dto) {
+
         return atletaRepository.findById(id)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrada")))
                 .flatMap(existente -> {
@@ -143,9 +149,6 @@ public class AtletaService {
 
                     existente.setNome(dto.nome());
                     existente.setNomeSocial(dto.nomeSocial());
-
-                    // CAMPOS SENSÍVEIS NÃO DEVEM SER ALTERADOS PELO ADMIN
-                    // email e cpf são mantidos como estão
 
                     if (dto.senha() != null && !dto.senha().isBlank()) {
                         existente.setSenha(passwordEncoder.encode(dto.senha()));
@@ -172,12 +175,9 @@ public class AtletaService {
 
                     existente.setComissaoPlataformaDiferenciada(dto.comissaoPlataformaDiferenciada());
 
-                    /**
-                     * LEGADO — preservado
-                     */
                     existente.setFotoDestaqueUrl(dto.fotoDestaqueId());
-
                     existente.setStatusAtleta(dto.statusAtleta());
+
                     existente.setAtualizadoEm(Instant.now());
 
                     return atletaRepository.save(existente);
@@ -217,8 +217,11 @@ public class AtletaService {
        ========================== */
 
     public Mono<Atleta> verificarAtleta(String id, Atleta.StatusVerificacao novoStatus, String observacoes) {
+
         return atletaRepository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrada")))
                 .flatMap(atleta -> {
+
                     atleta.setStatusVerificacao(novoStatus);
                     atleta.setObservacoesAdmin(observacoes);
                     atleta.setDataVerificacao(Instant.now());
@@ -232,15 +235,108 @@ public class AtletaService {
                 });
     }
 
+    /* ==========================
+       PROVISIONAMENTO DA CONTA DE PAGAMENTO (ASAAS)
+       ========================== */
+
+    /**
+     * Cria a subconta da atleta no gateway de pagamento e salva
+     * o walletId retornado para uso no split das cobranças.
+     *
+     * Exige identidade já verificada (KYC interno da plataforma)
+     * antes de avançar para o KYC do gateway.
+     */
+    public Mono<Atleta> provisionarContaPagamento(String id, SubcontaPagamentoDTO dto) {
+
+        return atletaRepository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrada")))
+                .flatMap(atleta -> {
+
+                    if (atleta.getStatusVerificacao() != Atleta.StatusVerificacao.VERIFICADO) {
+                        return Mono.error(new IllegalStateException(
+                                "Atleta precisa estar com identidade verificada antes de configurar a conta de recebimento"
+                        ));
+                    }
+
+                    if (atleta.getGatewayAccountId() != null && !atleta.getGatewayAccountId().isBlank()) {
+                        return Mono.error(new IllegalStateException(
+                                "Atleta já possui conta de recebimento configurada"
+                        ));
+                    }
+
+                    Map<String, Object> payload = new HashMap<>();
+                    payload.put("name", atleta.getNome());
+                    payload.put("email", atleta.getEmail());
+                    payload.put("cpfCnpj", atleta.getCpf());
+                    payload.put("mobilePhone", dto.celular());
+                    payload.put("address", dto.endereco());
+                    payload.put("addressNumber", dto.numeroEndereco());
+                    payload.put("province", dto.bairro());
+                    payload.put("postalCode", dto.cep());
+                    payload.put("incomeValue", dto.rendaMensal());
+
+                    if (dto.dataNascimento() != null) {
+                        payload.put("birthDate", dto.dataNascimento().toString());
+                    }
+
+                    return asaasService.criarSubcontaAtleta(payload)
+                            .flatMap(resposta -> {
+
+                                Object walletId = resposta.get("walletId");
+                                if (walletId == null) {
+                                    return Mono.error(new IllegalStateException(
+                                            "Asaas não retornou walletId para a subconta criada"
+                                    ));
+                                }
+
+                                atleta.setGatewayAccountId(walletId.toString());
+                                atleta.setAtualizadoEm(Instant.now());
+
+                                return atletaRepository.save(atleta);
+                            });
+                });
+    }
+
+    /* ==========================
+       VINCULAÇÃO DE DOCUMENTOS LEGAIS
+       ========================== */
+
+    public Mono<Atleta> vincularDocumentoLegal(
+            String id,
+            DocumentoLegalService.MetadataDocumentoLegal metadata,
+            DocumentoLegalService.TipoDocumento tipo
+    ) {
+
+        return atletaRepository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Atleta não encontrada")))
+                .flatMap(atleta -> {
+
+                    if (tipo == DocumentoLegalService.TipoDocumento.CONTRATO) {
+                        atleta.setLinkContratoDigital(metadata.getUrl());
+                        atleta.setContratoGestaoHash(metadata.getHashIntegridade());
+                        atleta.setContratoAssinado(true);
+                        atleta.setDataAssinaturaContrato(Instant.now());
+                    } else {
+                        atleta.setDocumentoIdentidadeUrl(metadata.getUrl());
+                        atleta.setScoreValidacaoDocumento("AGUARDANDO_ANALISE");
+                    }
+
+                    atleta.setAtualizadoEm(Instant.now());
+
+                    return atletaRepository.save(atleta);
+                });
+    }
+
+    /* ==========================
+       UTIL (GERADOR DE SLUG)
+       ========================== */
+
     public Mono<Void> deleteById(String id) {
         return atletaRepository.deleteById(id);
     }
 
-    /* ==========================
-       UTIL (Gerador de Slug)
-       ========================== */
-
     private String generateSlug(String input) {
+
         if (input == null) return null;
 
         String nowhitespace = WHITESPACE.matcher(input).replaceAll("-");

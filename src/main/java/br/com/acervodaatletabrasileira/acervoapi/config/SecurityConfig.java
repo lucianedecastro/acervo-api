@@ -93,6 +93,18 @@ public class SecurityConfig {
                     exchanges.pathMatchers(HttpMethod.POST, "/auth/login").permitAll();
                     exchanges.pathMatchers(HttpMethod.POST, "/admin/login").permitAll();
 
+                /* ==========================
+                   2b. AUTOCADASTRO FOTÓGRAFA
+                   ========================== */
+                    exchanges.pathMatchers(HttpMethod.POST, "/fotografas/cadastro").permitAll();
+
+                /* ==========================
+                   2c. WEBHOOK ASAAS
+                   ========================== */
+                    // Rota pública por natureza (o gateway não envia JWT).
+                    // Autenticidade é validada no controller via header próprio.
+                    exchanges.pathMatchers(HttpMethod.POST, "/webhooks/asaas").permitAll();
+
                     if (adminRegisterEnabled) {
                         exchanges.pathMatchers(HttpMethod.POST,
                                 "/auth/register-admin",
@@ -109,10 +121,15 @@ public class SecurityConfig {
                 /* ==========================
                    4. ROTAS PÚBLICAS (LEITURA)
                    ========================== */
+                    // Avaliada ANTES do permitAll genérico de /fotografas/**,
+                    // senão a rota privada da fotógrafa logada ficaria pública.
+                    exchanges.pathMatchers(HttpMethod.GET, "/fotografas/me").hasRole("FOTOGRAFA");
+
                     exchanges.pathMatchers(HttpMethod.GET,
                             "/modalidades/**",
                             "/atletas/**",
-                            "/acervo/**"
+                            "/acervo/**",
+                            "/fotografas/**"
                     ).permitAll();
 
                 /* ==========================
@@ -159,21 +176,24 @@ public class SecurityConfig {
                             HttpMethod.PUT,
                             "/acervo/**",
                             "/modalidades/**",
-                            "/atletas/**"
+                            "/atletas/**",
+                            "/fotografas/**"
                     ).hasRole("ADMIN");
 
                     exchanges.pathMatchers(
                             HttpMethod.PATCH,
                             "/acervo/**",
                             "/modalidades/**",
-                            "/atletas/**"
+                            "/atletas/**",
+                            "/fotografas/**"
                     ).hasRole("ADMIN");
 
                     exchanges.pathMatchers(
                             HttpMethod.DELETE,
                             "/acervo/**",
                             "/modalidades/**",
-                            "/atletas/**"
+                            "/atletas/**",
+                            "/fotografas/**"
                     ).hasRole("ADMIN");
 
                 /* ==========================

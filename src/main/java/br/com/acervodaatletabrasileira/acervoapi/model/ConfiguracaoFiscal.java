@@ -9,6 +9,10 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+/**
+ * Modelo de Configuração Fiscal e Operacional.
+ * Define as regras de divisão de valores e custos do ecossistema.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,15 +20,31 @@ import java.time.Instant;
 public class ConfiguracaoFiscal {
 
     @Id
-    private String id; // Usaremos um ID fixo como "GLOBAL_SETTINGS"
+    private String id; // Padrão: "GLOBAL_SETTINGS"
 
-    // Percentuais de Divisão
-    private BigDecimal percentualRepasseAtleta;    // Ex: 0.85
-    private BigDecimal percentualComissaoPlataforma; // Ex: 0.15
+    /* =====================================================
+       PERCENTUAIS DE REPASSE (ALINHADO AO SERVICE)
+       ===================================================== */
 
-    // Campos para futura expansão fiscal (ISS, nota técnica, etc)
+    private BigDecimal percentualRepasseAtleta;
+
+    private BigDecimal percentualComissaoPlataforma;
+
+    private BigDecimal taxaPreservacaoHistorica;
+
+    /* =====================================================
+       CUSTOS OPERACIONAIS
+       ===================================================== */
+
+    private BigDecimal custoFixoBlockchain;
+
+    /* =====================================================
+       AUDITORIA E CONTROLE
+       ===================================================== */
+
     private String observacaoLegal;
 
     private Instant atualizadoEm;
-    private String atualizadoPor; // E-mail do Admin que alterou
+
+    private String atualizadoPor;
 }

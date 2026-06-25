@@ -3,14 +3,19 @@ package br.com.acervodaatletabrasileira.acervoapi.controller;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaFormDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPerfilDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPublicoDTO;
+import br.com.acervodaatletabrasileira.acervoapi.dto.SubcontaPagamentoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
 import br.com.acervodaatletabrasileira.acervoapi.service.AtletaService;
+import br.com.acervodaatletabrasileira.acervoapi.service.DocumentoLegalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -23,9 +28,12 @@ import java.security.Principal;
 public class AtletaController {
 
     private final AtletaService atletaService;
+    private final DocumentoLegalService documentoLegalService;
 
-    public AtletaController(AtletaService atletaService) {
+    public AtletaController(AtletaService atletaService,
+                            DocumentoLegalService documentoLegalService) {
         this.atletaService = atletaService;
+        this.documentoLegalService = documentoLegalService;
     }
 
     /* =====================================================
@@ -46,9 +54,7 @@ public class AtletaController {
 
         String identificador = principal.getName().trim();
 
-        // Tenta buscar por ID primeiro (caso o token envie o ID do MongoDB)
         return atletaService.findById(identificador)
-                // Se não encontrar por ID, tenta buscar por e-mail (fluxo padrão)
                 .switchIfEmpty(atletaService.findByEmail(identificador))
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
@@ -64,15 +70,11 @@ public class AtletaController {
             @Parameter(description = "Filtrar por: HISTORICA, ATIVA ou ESPOLIO")
             @RequestParam(required = false) Atleta.CategoriaAtleta categoria
     ) {
-        Flux<Atleta> atletas;
-        if (categoria != null) {
-            atletas = atletaService.findAll()
-                    .filter(atleta -> atleta.getCategoria() == categoria);
-        } else {
-            atletas = atletaService.findAll();
-        }
 
-        // Aplica a conversão para DTO para esconder dados sensíveis
+        Flux<Atleta> atletas = (categoria != null)
+                ? atletaService.findAll().filter(atleta -> atleta.getCategoria() == categoria)
+                : atletaService.findAll();
+
         return atletas.map(AtletaPublicoDTO::fromModel);
     }
 
@@ -93,13 +95,14 @@ public class AtletaController {
     }
 
     /* =====================================================
-       ADMIN – ESCRITA E VERIFICAÇÃO (JWT Requerido)
+       ADMIN – ESCRITA E VERIFICAÇÃO (BLINDAGEM INSTITUCIONAL)
        ===================================================== */
 
     @Operation(
-            summary = "Cadastra uma nova atleta (Histórica, Ativa ou Espólio)",
+            summary = "Cadastra uma nova atleta",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Atleta> criar(@RequestBody AtletaFormDTO dto) {
@@ -110,6 +113,7 @@ public class AtletaController {
             summary = "Atualiza uma atleta existente",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public Mono<ResponseEntity<Atleta>> atualizar(
             @PathVariable String id,
@@ -124,6 +128,7 @@ public class AtletaController {
             summary = "Aprova ou rejeita a verificação de identidade/legalidade",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{id}/verificacao")
     public Mono<ResponseEntity<Atleta>> verificarAtleta(
             @PathVariable String id,
@@ -136,13 +141,54 @@ public class AtletaController {
     }
 
     @Operation(
+            summary = "Provisiona a conta de recebimento (Asaas) da atleta",
+            description = "Cria a subconta no gateway de pagamento e salva o walletId para uso no split. " +
+                    "Exige identidade já verificada.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{id}/gateway/subconta")
+    public Mono<ResponseEntity<Atleta>> provisionarContaPagamento(
+            @PathVariable String id,
+            @RequestBody SubcontaPagamentoDTO dto
+    ) {
+        return atletaService.provisionarContaPagamento(id, dto)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
+    @Operation(
             summary = "Remove uma atleta do acervo",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public Mono<ResponseEntity<Void>> remover(@PathVariable String id) {
         return atletaService.deleteById(id)
                 .then(Mono.just(new ResponseEntity<Void>(HttpStatus.NO_CONTENT)))
                 .onErrorResume(e -> Mono.just(new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED)));
+    }
+
+    /* =====================================================
+       INFRAESTRUTURA JURÍDICA
+       ===================================================== */
+
+    @Operation(
+            summary = "Upload de Documentos Jurídicos (Identidade / Contrato)",
+            description = "Processa o arquivo, gera hash de integridade e salva em storage seguro.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping(value = "/{id}/documentos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Mono<ResponseEntity<Atleta>> uploadDocumentoLegal(
+            @PathVariable String id,
+            @RequestPart("file") FilePart file,
+            @RequestParam("tipo") DocumentoLegalService.TipoDocumento tipo
+    ) {
+
+        return documentoLegalService.processarDocumentoLegal(file, id, tipo)
+                .flatMap(metadata -> atletaService.vincularDocumentoLegal(id, metadata, tipo))
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 }

@@ -1,9 +1,11 @@
 package br.com.acervodaatletabrasileira.acervoapi.repository;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.Transacao;
+import br.com.acervodaatletabrasileira.acervoapi.model.StatusRegistroInstitucional;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * Repositório para gestão financeira das licenças de uso.
@@ -27,4 +29,21 @@ public interface TransacaoRepository extends ReactiveMongoRepository<Transacao, 
      * Busca todas as licenças adquiridas por um comprador/pesquisador específico.
      */
     Flux<Transacao> findByCompradorId(String compradorId);
+
+    /* =====================================================
+       RASTREABILIDADE E BLOCKCHAIN (INCREMENTO)
+       ===================================================== */
+
+    /**
+     * Busca uma transação específica pelo Hash da rede (ID público do repasse).
+     */
+    Mono<Transacao> findByBlockchainTxId(String blockchainTxId);
+
+    /**
+     * Busca transações que ainda precisam de processamento institucional
+     * ou falharam no registro imutável.
+     */
+    Flux<Transacao> findByStatusRegistroInstitucional(
+            StatusRegistroInstitucional statusRegistroInstitucional
+    );
 }

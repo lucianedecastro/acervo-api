@@ -29,6 +29,24 @@ public record ItemAcervoCreateDTO(
          */
         String fotografoDoador,
 
+        /* =====================================================
+           PESQUISA E MEMÓRIA (INCREMENTO)
+           ===================================================== */
+        /**
+         * Fonte primária (ex: "Jornal O Paiz 1920") - Para itens históricos
+         */
+        String fontePesquisa,
+
+        /**
+         * Link externo para validação da fonte
+         */
+        String linkFontePesquisa,
+
+        /**
+         * Indica isenção de direitos autorais (apenas taxa de preservação)
+         */
+        Boolean dominioPublico,
+
         // Tipificação
         TipoItemAcervo tipo,
         StatusItemAcervo status,

@@ -2,6 +2,7 @@ package br.com.acervodaatletabrasileira.acervoapi.repository;
 
 import br.com.acervodaatletabrasileira.acervoapi.model.ItemAcervo;
 import br.com.acervodaatletabrasileira.acervoapi.model.StatusItemAcervo;
+import br.com.acervodaatletabrasileira.acervoapi.model.StatusBlockchain;
 import org.springframework.data.mongodb.repository.ReactiveMongoRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
@@ -84,8 +85,37 @@ public interface ItemAcervoRepository extends ReactiveMongoRepository<ItemAcervo
     Flux<ItemAcervo> findByCreditoAutoralContainingIgnoreCase(String termo);
 
     /* =====================================================
-       MEMORIAL / PESQUISA
+       MEMORIAL / PESQUISA (ORIGINAL)
        ===================================================== */
 
     Flux<ItemAcervo> findByItemHistoricoTrue();
+
+    /* =====================================================
+       BLOCKCHAIN & AUDITORIA (INCREMENTO)
+       ===================================================== */
+
+    /**
+     * Busca itens que falharam ou estão pendentes de registro na rede.
+     * Útil para Jobs de retentativa.
+     */
+    Flux<ItemAcervo> findByStatusBlockchain(StatusBlockchain statusBlockchain);
+
+    /**
+     * Busca item específico pelo Hash da Transação (Recibo Público).
+     */
+    Mono<ItemAcervo> findByBlockchainTxId(String blockchainTxId);
+
+    /* =====================================================
+       PESQUISA AVANÇADA / FONTES (INCREMENTO)
+       ===================================================== */
+
+    /**
+     * Filtra apenas itens em Domínio Público (Isentos de Royalties).
+     */
+    Flux<ItemAcervo> findByDominioPublicoTrue();
+
+    /**
+     * Busca por fonte de pesquisa (ex: "Jornal O Paiz", "Arquivo Nacional").
+     */
+    Flux<ItemAcervo> findByFontePesquisaContainingIgnoreCase(String fontePesquisa);
 }

@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -19,7 +20,15 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/licenciamento")
 @Tag(
         name = "Licenciamento & Financeiro",
-        description = "Simulação, licenciamento jurídico e efeitos financeiros"
+        description = """
+                Infraestrutura de simulação, formalização de licenciamento
+                e controle financeiro institucional.
+                
+                Diretriz atual:
+                - Blockchain NÃO é registrada automaticamente.
+                - O carimbo institucional ocorre via Governança/Admin.
+                - Este módulo apenas consolida o ato jurídico-financeiro.
+                """
 )
 public class LicenciamentoController {
 
@@ -30,10 +39,13 @@ public class LicenciamentoController {
     }
 
     /* =====================================================
-       SIMULAÇÃO (PÚBLICA / PROTEGIDA POR CONTEXTO)
+       SIMULAÇÃO (PÚBLICA / CONTEXTUAL)
        ===================================================== */
 
-    @Operation(summary = "Gera uma simulação de faturamento (sem efetivar licenciamento)")
+    @Operation(
+            summary = "Gera simulação de faturamento",
+            description = "Calcula o split entre plataforma e atleta/espólio conforme regras vigentes."
+    )
     @PostMapping("/simular")
     public Mono<SimulacaoFaturamentoDTO> gerarSimulacao(
             @RequestBody PropostaLicenciamentoDTO proposta
@@ -42,11 +54,20 @@ public class LicenciamentoController {
     }
 
     /* =====================================================
-       LICENCIAMENTO (ATO FORMAL)
+       LICENCIAMENTO (ATO FORMAL JURÍDICO-FINANCEIRO)
        ===================================================== */
 
     @Operation(
-            summary = "Efetiva um licenciamento autorizado (gera transação)",
+            summary = "Efetiva licenciamento autorizado",
+            description = """
+                    Consolida o licenciamento no sistema:
+                    - Validação jurídica
+                    - Registro financeiro
+                    - Geração de transação interna
+                    
+                    O registro na Blockchain ocorre posteriormente
+                    via fluxo administrativo de Governança.
+                    """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @PostMapping("/efetivar")
@@ -58,12 +79,32 @@ public class LicenciamentoController {
         return service.efetivarLicenciamento(proposta);
     }
 
+    @Operation(
+            summary = "Registra o selo institucional (Blockchain) de um licenciamento já liquidado",
+            description = """
+                    Ato administrativo separado da efetivação.
+                    Só pode ser executado após a confirmação de pagamento (Transação LIQUIDADA).
+                    Aprova o licenciamento e grava o TxId na Blockchain, espelhado também
+                    na Transação vinculada.
+                    """,
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PostMapping("/admin/{licenciamentoId}/registrar-blockchain")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Mono<Licenciamento> registrarSeloInstitucional(
+            @PathVariable String licenciamentoId,
+            Authentication authentication
+    ) {
+        return service.registrarSeloInstitucional(licenciamentoId, authentication.getName());
+    }
+
     /* =====================================================
-       CONSULTAS ADMIN / GOVERNANÇA
+       CONSULTAS ADMINISTRATIVAS
        ===================================================== */
 
     @Operation(
-            summary = "Lista todos os licenciamentos (governança)",
+            summary = "Lista todos os licenciamentos",
+            description = "Uso exclusivo administrativo para auditoria interna.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @GetMapping("/admin")
@@ -73,7 +114,7 @@ public class LicenciamentoController {
     }
 
     @Operation(
-            summary = "Lista licenciamentos por item de acervo",
+            summary = "Lista licenciamentos por item",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @GetMapping("/admin/item/{itemAcervoId}")
@@ -90,6 +131,13 @@ public class LicenciamentoController {
 
     @Operation(
             summary = "Consulta histórico financeiro da atleta",
+            description = """
+                    Lista detalhada de repasses.
+                    O status de Blockchain pode estar:
+                    - Aguardando registro institucional
+                    - Registrado
+                    - Em auditoria
+                    """,
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @GetMapping("/extrato/atleta/{atletaId}")

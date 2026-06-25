@@ -13,11 +13,11 @@ import java.time.Instant;
 /**
  * Representa o ato formal de licenciamento de um item do acervo.
  *
- * É a ponte entre:
- * - o Jurídico (autorização)
- * - o Financeiro (transação)
- *
- * NÃO representa pagamento.
+ * IMPORTANTE:
+ * - O campo "status" controla apenas o ciclo jurídico do licenciamento.
+ * - O registro em Blockchain é tratado separadamente via:
+ *   - blockchainTxId
+ *   - dataRegistroBlockchain
  */
 @Data
 @NoArgsConstructor
@@ -38,63 +38,79 @@ public class Licenciamento {
     @Indexed
     private String atletaId;
 
-    /**
-     * Documento jurídico que fundamenta este licenciamento
-     */
     @Indexed
     private String documentoDireitosId;
+
+    /**
+     * Vínculo com a Transacao criada na mesma efetivação.
+     * Necessário para checar a liquidação financeira antes
+     * de emitir o carimbo institucional (blockchain).
+     */
+    @Indexed
+    private String transacaoId;
+
+    /* =====================================================
+       DADOS DO LICENCIADO (REGISTRO INFORMATIVO)
+       ===================================================== */
+
+    /**
+     * Nome ou Razão Social de quem adquiriu a licença.
+     * Salvo como String pois não há módulo de login para compradores.
+     */
+    private String nomeLicenciado;
+
+    /**
+     * CPF ou CNPJ para fins de emissão de certificado/recibo.
+     */
+    private String documentoIdentificadorLicenciado;
 
     /* =====================================================
        REGRAS DO USO LICENCIADO
        ===================================================== */
 
-    /**
-     * Tipo de uso autorizado
-     * (EDITORIAL, COMERCIAL, PUBLICITARIO etc)
-     */
+    @Indexed
     private String tipoUso;
 
-    /**
-     * Território autorizado
-     */
     private DocumentoDireitos.TerritorioUso territorio;
-
-    /**
-     * Finalidade principal do licenciamento
-     */
     private DocumentoDireitos.FinalidadeUso finalidade;
-
-    /**
-     * Prazo de validade do licenciamento
-     */
     private Instant validoAte;
 
     /* =====================================================
        VALORES DE REFERÊNCIA
        ===================================================== */
 
-    /**
-     * Valor acordado para o licenciamento
-     * (base para cálculo fiscal)
-     */
     private BigDecimal valorLicenciamento;
 
     /* =====================================================
-       STATUS DO LICENCIAMENTO
+       STATUS JURÍDICO E REGISTRO DIGITAL
        ===================================================== */
 
+    /**
+     * Status jurídico do licenciamento.
+     * Controla apenas o ciclo de vida legal do contrato.
+     */
     private StatusLicenciamento status;
+
+    /**
+     * Transaction Hash (TxId) gerado pela rede Blockchain.
+     * Identificador público da transação que registrou
+     * a concessão da licença.
+     */
+    @Indexed
+    private String blockchainTxId;
+
+    /**
+     * Data do carimbo imutável na rede.
+     */
+    private Instant dataRegistroBlockchain;
 
     /* =====================================================
        AUDITORIA
        ===================================================== */
 
     private Instant criadoEm;
+
     private Instant atualizadoEm;
 
-    /**
-     * Quem aprovou o licenciamento (admin/jurídico)
-     */
     private String aprovadoPor;
 }
-

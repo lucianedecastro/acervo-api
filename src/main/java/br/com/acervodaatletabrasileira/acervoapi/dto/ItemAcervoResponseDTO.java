@@ -26,6 +26,43 @@ public record ItemAcervoResponseDTO(
          */
         String procedencia,
 
+        /**
+         * Crédito autoral exibível publicamente
+         */
+        String creditoAutoral,
+
+        /* =====================================================
+           PESQUISA E MEMÓRIA (INCREMENTO)
+           ===================================================== */
+        /**
+         * Fonte primária da pesquisa (ex: "Hemeroteca Digital")
+         */
+        String fontePesquisa,
+
+        /**
+         * Link para a fonte original (se houver)
+         */
+        String linkFontePesquisa,
+
+        /**
+         * Indica se a obra está em domínio público (Isenta de royalties)
+         */
+        Boolean dominioPublico,
+
+        /* =====================================================
+           TRANSPARÊNCIA BLOCKCHAIN (INCREMENTO)
+           ===================================================== */
+        /**
+         * Hash da Transação (TxId) na rede.
+         * O "Selo de Autenticidade" que o frontend vai linkar para o explorador de blocos.
+         */
+        String blockchainTxId,
+
+        /**
+         * Data em que o registro se tornou imutável.
+         */
+        Instant dataRegistroBlockchain,
+
         // Tipificação e status
         TipoItemAcervo tipo,
         StatusItemAcervo status,

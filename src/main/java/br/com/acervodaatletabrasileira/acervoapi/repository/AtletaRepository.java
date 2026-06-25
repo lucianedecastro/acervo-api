@@ -38,4 +38,24 @@ public interface AtletaRepository
      * Filtra atletas por categoria (HISTORICA, ATIVA, ESPOLIO).
      */
     Flux<Atleta> findByCategoria(Atleta.CategoriaAtleta categoria);
+
+    /* =====================================================
+       IDENTIDADE DIGITAL E GOVERNANÇA (INCREMENTO)
+       ===================================================== */
+
+    /**
+     * Lista atletas por status de verificação (PENDENTE, VERIFICADO, REJEITADO).
+     * Usado pela curadoria para processar a fila de novos cadastros.
+     */
+    Flux<Atleta> findByStatusVerificacao(Atleta.StatusVerificacao statusVerificacao);
+
+    /**
+     * Busca atletas que ainda não assinaram o contrato de gestão.
+     */
+    Flux<Atleta> findByContratoAssinadoFalse();
+
+    /**
+     * Busca atletas que possuem indicação de espólio ativa.
+     */
+    Flux<Atleta> findByIndicacaoEspolioNotNull();
 }

@@ -47,97 +47,93 @@ public class ItemAcervo {
 
     /**
      * Crédito autoral exibível publicamente
-     * (nome livre, não depende de entidade interna)
      */
     private String creditoAutoral;
 
     /**
      * Identificador interno opcional do autor
-     * (pode apontar para fotógrafa, agência ou outro módulo no futuro)
      */
     private String autorId;
+
+    /* =====================================================
+       PESQUISA E MEMÓRIA
+       ===================================================== */
+
+    private String fontePesquisa;
+    private String linkFontePesquisa;
+
+    /**
+     * Indica se a obra já caiu em domínio público
+     */
+    private Boolean dominioPublico;
 
     /* =====================================================
        TIPOLOGIA E STATUS
        ===================================================== */
 
-    private TipoItemAcervo tipo;      // FOTO, VIDEO, DOCUMENTO, etc
-    private StatusItemAcervo status;  // RASCUNHO, PUBLICADO, DISPONIVEL_LICENCIAMENTO, MEMORIAL...
+    private TipoItemAcervo tipo;
+    private StatusItemAcervo status;
 
     /* =====================================================
        RELACIONAMENTOS
        ===================================================== */
 
     private String modalidadeId;
-
-    /**
-     * Atletas relacionadas ao item (pode ser vazio)
-     */
     private List<String> atletasIds;
 
     /* =====================================================
        CONTROLE DE LICENCIAMENTO
        ===================================================== */
 
-    /**
-     * Flag editorial (controle rápido)
-     */
     private Boolean disponivelParaLicenciamento;
-
-    /**
-     * Preço base de licenciamento
-     * (pode ser recalculado no checkout)
-     */
     private BigDecimal precoBaseLicenciamento;
-
-    /**
-     * Indica se o item pertence à frente histórica (pesquisa)
-     * ou ativa (comercial)
-     */
     private Boolean itemHistorico;
-
-    /**
-     * Restrições específicas de uso
-     * (ex: "Somente editorial", "Proibido uso comercial")
-     */
     private String restricoesUso;
 
     /* =====================================================
-       DIREITOS AUTORAIS / IMAGEM (NÃO OBRIGATÓRIO)
+       DIREITOS AUTORAIS / IMAGEM
        ===================================================== */
 
-    /**
-     * Indica se existe documentação jurídica válida
-     * (cessão de direitos de imagem/autoral)
-     */
     private Boolean possuiDocumentacaoDireitos;
-
-    /**
-     * Referência ao documento jurídico (PDF, hash, storageId)
-     */
     private String documentoDireitosId;
 
     /* =====================================================
        ARQUIVOS DIGITAIS
        ===================================================== */
 
-    /**
-     * Arquivos associados ao item (fotos, frames, documentos digitalizados)
-     */
     private List<FotoAcervo> fotos;
+
+    /* =====================================================
+       RASTREABILIDADE INSTITUCIONAL (BLOCKCHAIN)
+       ===================================================== */
+
+    /**
+     * Hash SHA-256 do arquivo principal.
+     * Garantia técnica de integridade.
+     */
+    private String blockchainContentHash;
+
+    /**
+     * ID da Transação (TxId) na rede Blockchain.
+     * Prova pública de existência.
+     */
+    private String blockchainTxId;
+
+    /**
+     * Data em que o registro foi confirmado na rede.
+     */
+    private Instant dataRegistroBlockchain;
+
+    /**
+     * Status técnico do registro institucional.
+     */
+    private StatusBlockchain statusBlockchain;
 
     /* =====================================================
        INTELIGÊNCIA FINANCEIRA / AUDITORIA
        ===================================================== */
 
-    /**
-     * Percentual de repasse congelado no momento da publicação/licenciamento
-     */
     private BigDecimal percentualRepasseNoMomento;
-
-    /**
-     * Identificador de lote de pagamento (split, gateway, auditoria)
-     */
     private String loteFinanceiroId;
 
     /* =====================================================
@@ -146,10 +142,6 @@ public class ItemAcervo {
 
     private Instant criadoEm;
     private Instant atualizadoEm;
-
-    /**
-     * Curador responsável pela validação editorial/jurídica
-     */
     private String curadorResponsavel;
 
     /* =====================================================

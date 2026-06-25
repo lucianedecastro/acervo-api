@@ -3,11 +3,10 @@ package br.com.acervodaatletabrasileira.acervoapi.controller;
 import br.com.acervodaatletabrasileira.acervoapi.model.DocumentoDireitos;
 import br.com.acervodaatletabrasileira.acervoapi.model.TipoDecisao;
 import br.com.acervodaatletabrasileira.acervoapi.service.GovernancaService;
+import br.com.acervodaatletabrasileira.acervoapi.service.BlockchainService;
 import br.com.acervodaatletabrasileira.acervoapi.repository.DocumentoDireitosRepository;
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -17,53 +16,65 @@ import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 
+/**
+ * =====================================================
+ * JURÍDICO CONTROLLER
+ * =====================================================
+ *
+ * RESPONSABILIDADE:
+ * - Validação jurídica
+ * - Registro de decisão interna (Governança)
+ * - Registro de prova institucional externa (Blockchain)
+ *
+ * IMPORTANTE:
+ * A Blockchain aqui NÃO representa pagamento,
+ * apenas prova institucional de validação jurídica.
+ */
 @RestController
 @RequestMapping("/juridico")
 @Tag(
         name = "Jurídico / Governança",
-        description = "Validação jurídica, cessão de direitos e auditoria do acervo"
+        description = "Validação jurídica, cessão de direitos e auditoria institucional."
 )
 @SecurityRequirement(name = "bearerAuth")
 public class JuridicoController {
 
     private final DocumentoDireitosRepository documentoRepository;
     private final GovernancaService governancaService;
+    private final BlockchainService blockchainService;
 
     public JuridicoController(
             DocumentoDireitosRepository documentoRepository,
-            GovernancaService governancaService
+            GovernancaService governancaService,
+            BlockchainService blockchainService
     ) {
         this.documentoRepository = documentoRepository;
         this.governancaService = governancaService;
+        this.blockchainService = blockchainService;
     }
 
     /* =====================================================
-       CONSULTAS (ADMIN)
+       CONSULTAS ADMIN
        ===================================================== */
 
-    @Operation(summary = "Lista todos os documentos jurídicos")
     @GetMapping("/documentos")
     @PreAuthorize("hasRole('ADMIN')")
     public Flux<DocumentoDireitos> listarTodos() {
         return documentoRepository.findAll();
     }
 
-    @Operation(summary = "Busca documento jurídico por ID")
     @GetMapping("/documentos/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public Mono<ResponseEntity<DocumentoDireitos>> buscarPorId(
-            @PathVariable String id
-    ) {
+    public Mono<ResponseEntity<DocumentoDireitos>> buscarPorId(@PathVariable String id) {
         return documentoRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
     /* =====================================================
-       DECISÃO JURÍDICA (ADMIN)
+       VALIDAÇÃO JURÍDICA COM PROVA INSTITUCIONAL
        ===================================================== */
 
-    @Operation(summary = "Valida documento jurídico")
     @PatchMapping("/documentos/{id}/validar")
     @PreAuthorize("hasRole('ADMIN')")
     public Mono<ResponseEntity<DocumentoDireitos>> validarDocumento(
@@ -71,6 +82,7 @@ public class JuridicoController {
             @RequestParam(required = false) String observacoes,
             Authentication authentication
     ) {
+
         String responsavel = authentication.getName();
         String role = authentication.getAuthorities()
                 .iterator()
@@ -81,6 +93,10 @@ public class JuridicoController {
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Documento não encontrado")))
                 .flatMap(doc -> {
 
+                    if (doc.getHashConteudo() == null || doc.getHashConteudo().isBlank()) {
+                        return Mono.error(new IllegalStateException("Documento não possui hash de integridade"));
+                    }
+
                     doc.setStatus(DocumentoDireitos.StatusDocumentoDireitos.VALIDADO);
                     doc.setObservacoesJuridico(observacoes);
                     doc.setResponsavelValidacao(responsavel);
@@ -88,21 +104,42 @@ public class JuridicoController {
 
                     return documentoRepository.save(doc)
                             .flatMap(saved ->
+
+                                    // 1️⃣ Registro interno (Governança)
                                     governancaService.registrarDecisao(
-                                            TipoDecisao.JURIDICA,
-                                            "DOCUMENTO_DIREITOS",
-                                            saved.getId(),
-                                            "VALIDADO",
-                                            observacoes,
-                                            responsavel,
-                                            role
-                                    ).thenReturn(saved)
+                                                    TipoDecisao.JURIDICA,
+                                                    "DOCUMENTO_DIREITOS",
+                                                    saved.getId(),
+                                                    "VALIDADO",
+                                                    observacoes,
+                                                    responsavel,
+                                                    role
+                                            )
+
+                                            // 2️⃣ Registro externo (Prova Institucional Blockchain)
+                                            .then(
+                                                    blockchainService.registrarProvaInstitucional(
+                                                            "DOCUMENTO_DIREITOS",
+                                                            saved.getId(),
+                                                            saved.getHashConteudo()
+                                                    )
+                                            )
+
+                                            // 3️⃣ Persistência do TxId e timestamp institucional
+                                            .flatMap(txId -> {
+                                                saved.setBlockchainTxId(txId);
+                                                saved.setDataRegistroBlockchain(Instant.now());
+                                                return documentoRepository.save(saved);
+                                            })
                             );
                 })
                 .map(ResponseEntity::ok);
     }
 
-    @Operation(summary = "Rejeita documento jurídico")
+    /* =====================================================
+       REJEIÇÃO JURÍDICA
+       ===================================================== */
+
     @PatchMapping("/documentos/{id}/rejeitar")
     @PreAuthorize("hasRole('ADMIN')")
     public Mono<ResponseEntity<DocumentoDireitos>> rejeitarDocumento(
@@ -110,6 +147,7 @@ public class JuridicoController {
             @RequestParam String motivo,
             Authentication authentication
     ) {
+
         String responsavel = authentication.getName();
         String role = authentication.getAuthorities()
                 .iterator()
@@ -142,10 +180,9 @@ public class JuridicoController {
     }
 
     /* =====================================================
-       AUDITORIA (ADMIN)
+       FILTROS ADMIN
        ===================================================== */
 
-    @Operation(summary = "Lista documentos jurídicos por status")
     @GetMapping("/documentos/status/{status}")
     @PreAuthorize("hasRole('ADMIN')")
     public Flux<DocumentoDireitos> listarPorStatus(
@@ -154,4 +191,3 @@ public class JuridicoController {
         return documentoRepository.findByStatus(status);
     }
 }
-

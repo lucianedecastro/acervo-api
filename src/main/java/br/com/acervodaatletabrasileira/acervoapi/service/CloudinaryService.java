@@ -2,7 +2,6 @@ package br.com.acervodaatletabrasileira.acervoapi.service;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -21,17 +20,17 @@ public class CloudinaryService {
 
     private final Cloudinary cloudinary;
 
-    public CloudinaryService(@Value("${cloudinary.url}") String cloudinaryUrl) {
-        this.cloudinary = new Cloudinary(cloudinaryUrl);
+    /**
+     * ALINHAMENTO: Agora o construtor recebe o Bean 'Cloudinary'
+     * vindo do CloudinaryConfig. Não precisamos mais da @Value aqui,
+     * pois a configuração centralizou isso.
+     */
+    public CloudinaryService(Cloudinary cloudinary) {
+        this.cloudinary = cloudinary;
     }
 
     /**
      * Faz upload de uma imagem para o Cloudinary de forma reativa.
-     *
-     * Retorna:
-     * - publicId  → identificador único do asset
-     * - version   → versão do asset (imutabilidade e cache)
-     * - url       → secure_url (fallback técnico)
      */
     public Mono<Map<String, Object>> uploadImagem(FilePart file, String folder) {
         return file.content()
@@ -102,10 +101,6 @@ public class CloudinaryService {
        UTIL (URL PROTEGIDA COM WATERMARK)
        ========================== */
 
-    /**
-     * Gera uma URL pública protegida a partir do publicId original.
-     * OBS: método utilitário, não deve ser persistido como URL final.
-     */
     public String gerarUrlProtegidaComWatermark(String publicId) {
         return cloudinary.url()
                 .transformation(
