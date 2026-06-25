@@ -6,6 +6,7 @@ import br.com.acervodaatletabrasileira.acervoapi.dto.SimulacaoFaturamentoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.TransacaoResponseDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Licenciamento;
 import br.com.acervodaatletabrasileira.acervoapi.service.LicenciamentoService;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +17,13 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+/**
+ * Escondido do Swagger: módulo de licenciamento/pagamento pausado
+ * até a frente de monetização entrar em produção. Rotas continuam
+ * ativas e protegidas (ADMIN/ATLETA), só não aparecem na documentação
+ * pública pra não dar a impressão de feature pronta pra uso.
+ */
+@Hidden
 @RestController
 @RequestMapping("/licenciamento")
 @Tag(

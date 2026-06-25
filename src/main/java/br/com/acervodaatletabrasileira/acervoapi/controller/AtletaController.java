@@ -7,6 +7,7 @@ import br.com.acervodaatletabrasileira.acervoapi.dto.SubcontaPagamentoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
 import br.com.acervodaatletabrasileira.acervoapi.service.AtletaService;
 import br.com.acervodaatletabrasileira.acervoapi.service.DocumentoLegalService;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -140,6 +141,7 @@ public class AtletaController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
+    @Hidden
     @Operation(
             summary = "Provisiona a conta de recebimento (Asaas) da atleta",
             description = "Cria a subconta no gateway de pagamento e salva o walletId para uso no split. " +

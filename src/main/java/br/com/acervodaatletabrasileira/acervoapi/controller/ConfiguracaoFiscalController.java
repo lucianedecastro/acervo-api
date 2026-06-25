@@ -3,6 +3,7 @@ package br.com.acervodaatletabrasileira.acervoapi.controller;
 import br.com.acervodaatletabrasileira.acervoapi.dto.ConfiguracaoFiscalDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.ConfiguracaoFiscal;
 import br.com.acervodaatletabrasileira.acervoapi.repository.ConfiguracaoFiscalRepository;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +14,11 @@ import reactor.core.publisher.Mono;
 import java.security.Principal;
 import java.time.Instant;
 
+/**
+ * Escondido do Swagger: só importa enquanto a frente de
+ * licenciamento/pagamento estiver pausada.
+ */
+@Hidden
 @RestController
 @RequestMapping("/configuracoes/fiscal")
 @Tag(name = "Configurações Fiscais", description = "Gestão de taxas e percentuais (Exclusivo Admin)")
