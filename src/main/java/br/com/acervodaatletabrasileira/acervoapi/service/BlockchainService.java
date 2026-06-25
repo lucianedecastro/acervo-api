@@ -50,12 +50,38 @@ public class BlockchainService {
     private final long chainId = 80002; // Polygon Amoy Testnet
 
     public BlockchainService(
-            @Value("${blockchain.alchemy-url}") String alchemyUrl,
-            @Value("${blockchain.private-key}") String privateKey
+            @Value("${blockchain.alchemy-url:}") String alchemyUrl,
+            @Value("${blockchain.private-key:}") String privateKey
     ) {
-        this.web3j = Web3j.build(new HttpService(alchemyUrl));
-        this.credentials = Credentials.create(privateKey);
-        this.transactionManager = new RawTransactionManager(web3j, credentials, chainId);
+        Web3j web3jTemp = null;
+        Credentials credentialsTemp = null;
+        RawTransactionManager transactionManagerTemp = null;
+
+        if (alchemyUrl.isBlank() || privateKey.isBlank()) {
+            log.warn("BlockchainService inicializado sem 'blockchain.alchemy-url'/'blockchain.private-key' " +
+                    "configurados. Chamadas de registro institucional vão falhar até a configuração ser definida.");
+        } else {
+            try {
+                web3jTemp = Web3j.build(new HttpService(alchemyUrl));
+                credentialsTemp = Credentials.create(privateKey);
+                transactionManagerTemp = new RawTransactionManager(web3jTemp, credentialsTemp, chainId);
+            } catch (Exception e) {
+                // Não deixa NENHUM problema de configuração (chave malformada,
+                // URL inválida, etc.) derrubar o boot da aplicação. Mesmo
+                // princípio do CloudinaryConfig/AsaasService, só que aqui
+                // cobrindo "valor presente mas inválido", não só "valor ausente".
+                log.warn("BlockchainService: falha ao inicializar com a configuração fornecida ({}). " +
+                                "Chamadas de registro institucional vão falhar até a configuração ser corrigida.",
+                        e.getMessage());
+                web3jTemp = null;
+                credentialsTemp = null;
+                transactionManagerTemp = null;
+            }
+        }
+
+        this.web3j = web3jTemp;
+        this.credentials = credentialsTemp;
+        this.transactionManager = transactionManagerTemp;
     }
 
     /* =====================================================
@@ -85,6 +111,12 @@ public class BlockchainService {
             String entidadeId,
             String hashArquivo
     ) {
+
+        if (transactionManager == null) {
+            return Mono.error(new IllegalStateException(
+                    "BlockchainService não está configurado (blockchain.alchemy-url / blockchain.private-key ausentes)"
+            ));
+        }
 
         return Mono.fromCallable(() -> {
 
