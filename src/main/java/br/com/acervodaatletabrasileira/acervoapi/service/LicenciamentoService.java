@@ -459,6 +459,15 @@ public class LicenciamentoService {
                 .map(this::mapToResponseDTO);
     }
 
+    /**
+     * Lista todas as transações, sem filtro por atleta.
+     * Uso exclusivo da visão administrativa geral (AdminVendas).
+     */
+    public Flux<TransacaoResponseDTO> listarTodasTransacoes() {
+        return transacaoRepository.findAll()
+                .map(this::mapToResponseDTO);
+    }
+
     public Mono<ExtratoAtletaDTO> gerarExtratoConsolidado(String atletaId) {
 
         return atletaRepository.findById(atletaId)

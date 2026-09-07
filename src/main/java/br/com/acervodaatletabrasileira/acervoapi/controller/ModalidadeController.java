@@ -95,7 +95,8 @@ public class ModalidadeController {
                         null,
                         null,
                         null,
-                        null
+                        null,
+                        null  // legendaFotoDestaque
                 )))
                 .flatMap(dto -> modalidadeService.update(id, dto));
     }

@@ -90,6 +90,19 @@ public class ItemAcervoController {
     }
 
     @Operation(
+            summary = "Busca um item por ID para contexto administrativo",
+            description = "Sem filtro de status — necessário para curadoria de itens em RASCUNHO/ARQUIVADO.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @GetMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Mono<ResponseEntity<ItemAcervoResponseDTO>> buscarPorIdAdmin(@PathVariable String id) {
+        return service.buscarPorIdAdmin(id)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
+    @Operation(
             summary = "Cria novo item de acervo",
             description = "Cria o registro inicial. O registro em Blockchain é um ato institucional separado.",
             security = @SecurityRequirement(name = "bearerAuth")
@@ -99,6 +112,34 @@ public class ItemAcervoController {
     @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA', 'FOTOGRAFA')")
     public Mono<ItemAcervo> criar(@RequestBody ItemAcervoCreateDTO dto) {
         return service.criar(dto);
+    }
+
+    @Operation(
+            summary = "Atualiza um item de acervo existente",
+            description = "Atualiza os dados editoriais. Não altera fotos nem o registro de blockchain.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Mono<ResponseEntity<ItemAcervo>> atualizar(
+            @PathVariable String id,
+            @RequestBody ItemAcervoCreateDTO dto
+    ) {
+        return service.atualizar(id, dto)
+                .map(ResponseEntity::ok);
+    }
+
+    @Operation(
+            summary = "Remove um item de acervo",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Mono<ResponseEntity<Void>> remover(@PathVariable String id) {
+        return service.deletar(id)
+                .then(Mono.just(new ResponseEntity<Void>(HttpStatus.NO_CONTENT)))
+                .onErrorResume(IllegalArgumentException.class,
+                        e -> Mono.just(ResponseEntity.notFound().build()));
     }
 
     /**

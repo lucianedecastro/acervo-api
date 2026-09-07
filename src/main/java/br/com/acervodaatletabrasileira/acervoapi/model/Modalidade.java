@@ -54,6 +54,12 @@ public class Modalidade {
     private String fotoDestaquePublicId;
 
     /**
+     * Legenda descritiva da foto de destaque.
+     * Exibida abaixo da imagem na página pública da modalidade.
+     */
+    private String legendaFotoDestaque;
+
+    /**
      * Indica se a modalidade está ativa no acervo público
      * Permite curadoria sem exclusão
      */

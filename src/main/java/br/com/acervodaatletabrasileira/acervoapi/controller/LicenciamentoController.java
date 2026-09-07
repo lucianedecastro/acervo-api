@@ -133,6 +133,17 @@ public class LicenciamentoController {
         return service.listarLicenciamentosPorItem(itemAcervoId);
     }
 
+    @Operation(
+            summary = "Lista todas as transações (visão administrativa geral)",
+            description = "Lista completa, sem filtro por atleta — o front aplica os filtros (status, período).",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @GetMapping("/admin/transacoes")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Flux<TransacaoResponseDTO> listarTodasTransacoes() {
+        return service.listarTodasTransacoes();
+    }
+
     /* =====================================================
        EXTRATOS FINANCEIROS
        ===================================================== */

@@ -31,6 +31,12 @@ public class FotoPerfilAtleta {
     private Instant criadaEm;
 
     /**
+     * Legenda descritiva da foto.
+     * Exibida abaixo da imagem no perfil público da atleta.
+     */
+    private String legenda;
+
+    /**
      * Controle simples de ativação
      */
     private Boolean ativa = true;

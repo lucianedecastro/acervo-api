@@ -27,6 +27,10 @@ public record ModalidadeDTO(
         List<FotoAcervo> fotos,
 
         @Schema(example = "modalidades/natacao_destaque", description = "PublicId da foto de destaque no Cloudinary")
-        String fotoDestaquePublicId
+        String fotoDestaquePublicId,
+
+        @Schema(example = "Seleção brasileira feminina de natação, Jogos Pan-Americanos, 1963",
+                description = "Legenda descritiva da foto de destaque")
+        String legendaFotoDestaque
 ) {
 }

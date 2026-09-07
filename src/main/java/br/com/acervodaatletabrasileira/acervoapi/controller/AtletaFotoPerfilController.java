@@ -90,6 +90,7 @@ public class AtletaFotoPerfilController {
                 url,
                 file.filename(),
                 Instant.now(),
+                null,  // legenda — preenchida posteriormente pelo admin
                 true
         );
 

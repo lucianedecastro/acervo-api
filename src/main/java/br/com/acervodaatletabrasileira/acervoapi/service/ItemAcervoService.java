@@ -89,6 +89,20 @@ public class ItemAcervoService {
     }
 
     /* =====================================================
+       CONSULTAS ADMIN (SEM FILTRO DE STATUS)
+       ===================================================== */
+
+    /**
+     * Busca um item por ID para contexto administrativo.
+     * Diferente de buscarPublicadoPorId, não filtra por status —
+     * necessário para curadoria de itens em RASCUNHO/ARQUIVADO.
+     */
+    public Mono<ItemAcervoResponseDTO> buscarPorIdAdmin(String id) {
+        return repository.findById(id)
+                .map(this::toResponseDTO);
+    }
+
+    /* =====================================================
        CRIAÇÃO
        ===================================================== */
 
@@ -111,6 +125,45 @@ public class ItemAcervoService {
         item.setAtualizadoEm(Instant.now());
 
         return repository.save(item);
+    }
+
+    /* =====================================================
+       ATUALIZAÇÃO
+       ===================================================== */
+
+    /**
+     * Atualiza os dados editoriais de um item já existente.
+     * Não altera fotos, hash/status de blockchain ou data de criação —
+     * esses fluxos têm seus próprios endpoints dedicados.
+     */
+    public Mono<ItemAcervo> atualizar(String id, ItemAcervoCreateDTO dto) {
+
+        if (dto.tipo() == null)
+            return Mono.error(new IllegalArgumentException("Tipo do item é obrigatório"));
+
+        if (dto.modalidadeId() == null || dto.modalidadeId().isBlank())
+            return Mono.error(new IllegalArgumentException("Modalidade é obrigatória"));
+
+        if (dto.atletasIds() == null || dto.atletasIds().isEmpty())
+            return Mono.error(new IllegalArgumentException("Item deve manter ao menos uma atleta vinculada"));
+
+        return repository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Item não encontrado")))
+                .flatMap(item -> {
+                    preencherDadosComuns(item, dto);
+                    item.setAtualizadoEm(Instant.now());
+                    return repository.save(item);
+                });
+    }
+
+    /* =====================================================
+       REMOÇÃO
+       ===================================================== */
+
+    public Mono<Void> deletar(String id) {
+        return repository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Item não encontrado")))
+                .flatMap(repository::delete);
     }
 
     /* =====================================================
