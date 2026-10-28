@@ -8,6 +8,9 @@ import br.com.acervodaatletabrasileira.acervoapi.model.*;
 import br.com.acervodaatletabrasileira.acervoapi.repository.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -452,6 +455,22 @@ public class LicenciamentoService {
 
     public Flux<Licenciamento> listarLicenciamentosPorItem(String itemAcervoId) {
         return licenciamentoRepository.findByItemAcervoId(itemAcervoId);
+    }
+
+    /**
+     * Garante que o extrato só seja lido pelo ADMIN ou pela própria atleta.
+     * O nome do principal da atleta é o e-mail (ver UserDetailsServiceImpl).
+     */
+    public Mono<Void> garantirAcessoAoExtrato(String atletaId, Authentication authentication) {
+        boolean admin = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        if (admin) {
+            return Mono.empty();
+        }
+        return atletaRepository.findById(atletaId)
+                .filter(a -> a.getEmail() != null && a.getEmail().equalsIgnoreCase(authentication.getName()))
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado ao extrato")))
+                .then();
     }
 
     public Flux<TransacaoResponseDTO> listarTransacoesPorAtleta(String atletaId) {

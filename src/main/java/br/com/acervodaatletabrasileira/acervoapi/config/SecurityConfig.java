@@ -106,17 +106,42 @@ public class SecurityConfig {
                     exchanges.pathMatchers(HttpMethod.POST, "/webhooks/asaas").permitAll();
 
                     if (adminRegisterEnabled) {
+                        // Bootstrap do primeiro admin: só deve ficar ligado temporariamente.
                         exchanges.pathMatchers(HttpMethod.POST,
                                 "/auth/register-admin",
                                 "/auth/register-temp",
                                 "/admin/register-temp"
                         ).permitAll();
+                    } else {
+                        // Com a flag desligada, apenas um ADMIN já autenticado pode criar outro.
+                        // Sem esta regra a rota cairia em authenticated() e qualquer
+                        // ATLETA/FOTOGRAFA logada conseguiria criar um ADMIN.
+                        exchanges.pathMatchers(HttpMethod.POST,
+                                "/auth/register-admin",
+                                "/auth/register-temp"
+                        ).hasRole("ADMIN");
                     }
 
                 /* ==========================
                    3. SWAGGER / DOCUMENTAÇÃO
                    ========================== */
                     exchanges.pathMatchers(SWAGGER_WHITELIST).permitAll();
+
+                /* ==========================
+                   3b. ADMINISTRATIVO
+                   ========================== */
+                    // Deve ser avaliado ANTES das leituras públicas (GET /modalidades/**,
+                    // /atletas/**, /acervo/**), senão as rotas /admin/** ficam públicas.
+                    exchanges.pathMatchers(
+                            "/admin/**",
+                            "/dashboard/admin/**",
+                            "/modalidades/admin/**",
+                            "/atletas/admin/**",
+                            "/acervo/admin/**",
+                            "/licenciamento/admin/**",
+                            "/juridico/**",
+                            "/configuracoes/**"
+                    ).hasRole("ADMIN");
 
                 /* ==========================
                    4. ROTAS PÚBLICAS (LEITURA)
@@ -149,17 +174,6 @@ public class SecurityConfig {
 
                     exchanges.pathMatchers(
                             "/licenciamento/extrato/consolidado/**"
-                    ).hasRole("ADMIN");
-
-                /* ==========================
-                   7. ADMINISTRATIVO
-                   ========================== */
-                    exchanges.pathMatchers(
-                            "/admin/**",
-                            "/dashboard/admin/**",
-                            "/modalidades/admin/**",
-                            "/atletas/admin/**",
-                            "/configuracoes/**"
                     ).hasRole("ADMIN");
 
                 /* ==========================

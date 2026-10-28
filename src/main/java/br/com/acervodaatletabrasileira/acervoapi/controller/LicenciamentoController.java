@@ -162,9 +162,11 @@ public class LicenciamentoController {
     @GetMapping("/extrato/atleta/{atletaId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA')")
     public Flux<TransacaoResponseDTO> consultarExtratoAtleta(
-            @PathVariable String atletaId
+            @PathVariable String atletaId,
+            Authentication authentication
     ) {
-        return service.listarTransacoesPorAtleta(atletaId);
+        return service.garantirAcessoAoExtrato(atletaId, authentication)
+                .thenMany(Flux.defer(() -> service.listarTransacoesPorAtleta(atletaId)));
     }
 
     @Operation(
@@ -174,8 +176,10 @@ public class LicenciamentoController {
     @GetMapping("/extrato/consolidado/{atletaId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA')")
     public Mono<ExtratoAtletaDTO> obterExtratoConsolidado(
-            @PathVariable String atletaId
+            @PathVariable String atletaId,
+            Authentication authentication
     ) {
-        return service.gerarExtratoConsolidado(atletaId);
+        return service.garantirAcessoAoExtrato(atletaId, authentication)
+                .then(Mono.defer(() -> service.gerarExtratoConsolidado(atletaId)));
     }
 }
