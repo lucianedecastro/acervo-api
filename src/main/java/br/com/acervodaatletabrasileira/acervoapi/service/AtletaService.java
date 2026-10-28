@@ -157,6 +157,7 @@ public class AtletaService {
         }
 
         return contaEmailService.garantirEmailLivre(email)
+                .then(garantirCpfLivre(cpf))
                 .then(slugUnico(dto.nome().trim()))
                 .flatMap(slug -> {
                     Atleta atleta = new Atleta();
@@ -173,6 +174,17 @@ public class AtletaService {
                     atleta.setAtualizadoEm(Instant.now());
                     return atletaRepository.save(atleta);
                 });
+    }
+
+    // Os índices únicos do MongoDB não são criados automaticamente neste projeto,
+    // então a duplicidade de CPF é verificada aqui.
+    private Mono<Void> garantirCpfLivre(String cpf) {
+        return atletaRepository.findByCpf(cpf)
+                .hasElement()
+                .<Void>flatMap(existe -> existe
+                        ? Mono.error(new org.springframework.web.server.ResponseStatusException(
+                                org.springframework.http.HttpStatus.CONFLICT, "CPF já cadastrado"))
+                        : Mono.empty());
     }
 
     private Mono<String> slugUnico(String nome) {
