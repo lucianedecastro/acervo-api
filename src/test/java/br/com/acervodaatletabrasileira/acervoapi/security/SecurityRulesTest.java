@@ -92,6 +92,14 @@ class SecurityRulesTest {
     }
 
     @Test
+    void actuator_somenteHealthEPublico() {
+        // Sem o actuator no slice o health não existe (404), mas não é barrado pela segurança (401).
+        client.get().uri("/actuator/health/liveness").exchange().expectStatus().isNotFound();
+        client.get().uri("/actuator/env").exchange().expectStatus().isUnauthorized();
+        client.get().uri("/actuator/heapdump").exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
     void modalidadesAdmin_anonimoRecebe401() {
         client.get().uri("/modalidades/admin").exchange().expectStatus().isUnauthorized();
     }

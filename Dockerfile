@@ -1,33 +1,37 @@
 # ---------------------------
-# 🏗️ Estágio 1: Build da Aplicação
+# Estágio 1: build
 # ---------------------------
-FROM maven:3.8.8-eclipse-temurin-17 AS build
+FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
-# Copia o pom.xml e baixa dependências (cache inteligente)
+# Dependências primeiro, para aproveitar o cache de camadas
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
+RUN mvn -B -q dependency:go-offline
 
-# Copia o código e gera o JAR
+# Os testes rodam no CI (GitHub Actions); aqui só empacota
 COPY src ./src
-RUN mvn clean package -DskipTests -DcompilerArgs=-parameters
+RUN mvn -B -q clean package -DskipTests
 
 # ---------------------------
-# 🚀 Estágio 2: Imagem de Execução (Leve)
+# Estágio 2: execução
 # ---------------------------
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-LABEL maintainer="Luciane de Castro <email@dominio.com>" \
-      project="acervo-carmen-lydia" \
-      description="API Java com Spring Boot e Firestore"
+LABEL project="acervo-carmen-lydia" \
+      description="API Java (Spring Boot WebFlux) com MongoDB"
 
-# Copia o artefato final
-COPY --from=build /app/target/*.jar app.jar
+# Não roda como root
+RUN groupadd --system spring && useradd --system --gid spring --no-create-home spring
 
-# Expondo porta padrão
+COPY --from=build --chown=spring:spring /app/target/*.jar app.jar
+USER spring
+
 EXPOSE 8080
 ENV PORT=8080
 
-# Inicializa o app
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Memória limitada pelo container; falha rápido em OOM para a hospedagem reiniciar
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError"
+
+# O ENTRYPOINT usa exec para o java receber SIGTERM (shutdown gracioso)
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

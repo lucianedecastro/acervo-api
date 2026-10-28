@@ -1,0 +1,9 @@
+# Perfil usado pelos testes: valores fictícios, sem serviços externos.
+# O driver do MongoDB conecta de forma preguiçosa, então o contexto sobe sem banco.
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/acervo-test
+
+jwt:
+  secret: segredo-de-teste-com-pelo-menos-32-caracteres
