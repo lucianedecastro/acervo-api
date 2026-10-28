@@ -102,6 +102,7 @@ public class SecurityConfig {
                     exchanges.pathMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll();
 
                     exchanges.pathMatchers(HttpMethod.POST, "/auth/login").permitAll();
+                    exchanges.pathMatchers(HttpMethod.POST, "/auth/esqueci-senha", "/auth/redefinir-senha").permitAll();
                     exchanges.pathMatchers(HttpMethod.POST, "/admin/login").permitAll();
 
                 /* ==========================

@@ -26,6 +26,8 @@ management:
       show-details: never
 
 app:
+  # Endereço do site; usado no link do e-mail de recuperação de senha
+  frontend-url: ${FRONTEND_URL:https://www.acervodaatletabrasileira.com.br}
   admin:
     register-enabled: ${ADMIN_REGISTER_ENABLED:false}
   swagger:
@@ -60,3 +62,8 @@ blockchain:
   alchemy-url: ${BLOCKCHAIN_ALCHEMY_URL:}
   private-key: ${BLOCKCHAIN_PRIVATE_KEY:}
   contract-address: ${BLOCKCHAIN_CONTRACT_ADDRESS:0x0000000000000000000000000000000000000000}
+
+resend:
+  api-key: ${RESEND_API_KEY:}
+  # Ex.: Acervo Carmen Lydia <nao-responda@acervodaatletabrasileira.com.br> (domínio verificado no Resend)
+  from: ${RESEND_FROM:}

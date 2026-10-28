@@ -35,6 +35,7 @@ class AutocadastroServiceTest {
         when(atletas.findByEmail(any())).thenReturn(Mono.empty());
         when(fotografas.findByEmail(any())).thenReturn(Mono.empty());
         when(atletas.findBySlug(any())).thenReturn(Mono.empty());
+        when(atletas.findByCpf(any())).thenReturn(Mono.empty());
         when(atletas.save(any(Atleta.class))).thenAnswer(i -> Mono.just(i.getArgument(0)));
         service = new AtletaService(atletas, mock(ItemAcervoRepository.class), encoder, null,
                 new ContaEmailService(admins, atletas, fotografas));
@@ -82,6 +83,14 @@ class AutocadastroServiceTest {
         when(fotografas.findByEmail("m@x.com")).thenReturn(Mono.just(new Fotografa()));
         assertThatThrownBy(() -> service.registrar(dto("m@x.com", "12345678901")).block())
                 .isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void registrar_cpfJaCadastradoRecebe409() {
+        when(atletas.findByCpf("12345678901")).thenReturn(Mono.just(new Atleta()));
+        assertThatThrownBy(() -> service.registrar(dto("novo@x.com", "123.456.789-01")).block())
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("CPF");
     }
 
     @Test
