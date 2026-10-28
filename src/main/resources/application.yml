@@ -10,6 +10,20 @@ spring:
 
 server:
   port: ${PORT:8080}
+  shutdown: graceful
+
+# Só o health é exposto. Para health check da hospedagem use /actuator/health/liveness
+# (não depende do MongoDB; /actuator/health inclui o banco).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
 
 app:
   admin:

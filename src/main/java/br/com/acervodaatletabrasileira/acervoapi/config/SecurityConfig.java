@@ -99,6 +99,8 @@ public class SecurityConfig {
                 /* ==========================
                    2. AUTENTICAÇÃO
                    ========================== */
+                    exchanges.pathMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll();
+
                     exchanges.pathMatchers(HttpMethod.POST, "/auth/login").permitAll();
                     exchanges.pathMatchers(HttpMethod.POST, "/admin/login").permitAll();
 
