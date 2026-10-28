@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -56,7 +57,7 @@ public class LicenciamentoController {
     )
     @PostMapping("/simular")
     public Mono<SimulacaoFaturamentoDTO> gerarSimulacao(
-            @RequestBody PropostaLicenciamentoDTO proposta
+            @Valid @RequestBody PropostaLicenciamentoDTO proposta
     ) {
         return service.gerarSimulacaoFaturamento(proposta);
     }
@@ -82,7 +83,7 @@ public class LicenciamentoController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('ADMIN', 'ATLETA')")
     public Mono<TransacaoResponseDTO> efetivarLicenciamento(
-            @RequestBody PropostaLicenciamentoDTO proposta
+            @Valid @RequestBody PropostaLicenciamentoDTO proposta
     ) {
         return service.efetivarLicenciamento(proposta);
     }

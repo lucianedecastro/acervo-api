@@ -6,17 +6,20 @@ package br.com.acervodaatletabrasileira.acervoapi.dto;
  * Representa a intenção de uso, NÃO a autorização jurídica
  * nem a efetivação financeira.
  */
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+
 public record PropostaLicenciamentoDTO(
 
         /**
          * Item do acervo a ser licenciado
          */
-        String itemAcervoId,
+        @NotBlank String itemAcervoId,
 
         /**
          * Atleta titular do acervo
          */
-        String atletaId,
+        @NotBlank String atletaId,
 
         /**
          * Fotógrafa autora do material (opcional).
@@ -34,7 +37,7 @@ public record PropostaLicenciamentoDTO(
          * Prazo de uso em meses
          * (null = uso pontual / sem vigência definida)
          */
-        Integer prazoMeses,
+        @Positive Integer prazoMeses,
 
         String nomeLicenciado,
 
