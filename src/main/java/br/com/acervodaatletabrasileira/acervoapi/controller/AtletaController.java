@@ -3,6 +3,7 @@ package br.com.acervodaatletabrasileira.acervoapi.controller;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaFormDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPerfilDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPublicoDTO;
+import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaRegistroDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.SubcontaPagamentoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
 import br.com.acervodaatletabrasileira.acervoapi.service.AtletaService;
@@ -16,12 +17,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.multipart.FilePart;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.security.Principal;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/atletas")
@@ -65,24 +69,37 @@ public class AtletaController {
        LEITURA PÚBLICA (COM DTO DE PROTEÇÃO)
        ===================================================== */
 
+    /** Admin enxerga também perfis pendentes de aprovação; o público não. */
+    private Mono<Boolean> chamadaDeAdmin() {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> ctx.getAuthentication() != null && ctx.getAuthentication().getAuthorities().stream()
+                        .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority())))
+                .defaultIfEmpty(false);
+    }
+
     @Operation(summary = "Lista atletas do acervo (visão pública protegida)")
     @GetMapping
     public Flux<AtletaPublicoDTO> listar(
             @Parameter(description = "Filtrar por: HISTORICA, ATIVA ou ESPOLIO")
             @RequestParam(required = false) Atleta.CategoriaAtleta categoria
     ) {
+        return chamadaDeAdmin().flatMapMany(admin -> {
+            Flux<Atleta> atletas = atletaService.findAll()
+                    .filter(atleta -> admin || AtletaService.isPublicavel(atleta));
 
-        Flux<Atleta> atletas = (categoria != null)
-                ? atletaService.findAll().filter(atleta -> atleta.getCategoria() == categoria)
-                : atletaService.findAll();
+            if (categoria != null) {
+                atletas = atletas.filter(atleta -> atleta.getCategoria() == categoria);
+            }
 
-        return atletas.map(AtletaPublicoDTO::fromModel);
+            return atletas.map(AtletaPublicoDTO::fromModel);
+        });
     }
 
     @Operation(summary = "Busca os dados públicos de uma atleta pelo ID")
     @GetMapping("/{id}")
     public Mono<ResponseEntity<AtletaPublicoDTO>> buscarPorId(@PathVariable String id) {
-        return atletaService.findById(id)
+        return chamadaDeAdmin().flatMap(admin -> atletaService.findById(id)
+                        .filter(atleta -> admin || AtletaService.isPublicavel(atleta)))
                 .map(atleta -> ResponseEntity.ok(AtletaPublicoDTO.fromModel(atleta)))
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
@@ -90,7 +107,9 @@ public class AtletaController {
     @Operation(summary = "Busca o perfil completo da atleta pelo Slug (Dados + Acervo)")
     @GetMapping("/perfil/{slug}")
     public Mono<ResponseEntity<AtletaPerfilDTO>> buscarPorSlug(@PathVariable String slug) {
-        return atletaService.getPerfilCompletoBySlug(slug)
+        return chamadaDeAdmin().flatMap(admin -> atletaService.findBySlug(slug)
+                        .filter(atleta -> admin || AtletaService.isPublicavel(atleta)))
+                .flatMap(atleta -> atletaService.getPerfilCompletoBySlug(slug))
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
@@ -98,6 +117,17 @@ public class AtletaController {
     /* =====================================================
        ADMIN – ESCRITA E VERIFICAÇÃO (BLINDAGEM INSTITUCIONAL)
        ===================================================== */
+
+    @Operation(summary = "Autocadastro de atleta (Criar conta) — fica pendente de verificação")
+    @PostMapping("/registro")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<Map<String, String>> registrar(@Valid @RequestBody AtletaRegistroDTO dto) {
+        return atletaService.registrar(dto)
+                .map(atleta -> Map.of(
+                        "id", atleta.getId(),
+                        "mensagem", "Cadastro recebido. Seu perfil será analisado pela curadoria."
+                ));
+    }
 
     @Operation(
             summary = "Cadastra uma nova atleta",

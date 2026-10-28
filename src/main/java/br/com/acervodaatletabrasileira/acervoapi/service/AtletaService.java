@@ -2,6 +2,7 @@ package br.com.acervodaatletabrasileira.acervoapi.service;
 
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaFormDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPerfilDTO;
+import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaRegistroDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AtletaPublicoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.SubcontaPagamentoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Atleta;
@@ -29,6 +30,10 @@ public class AtletaService {
     private final ItemAcervoRepository acervoRepository;
     private final PasswordEncoder passwordEncoder;
     private final AsaasService asaasService;
+    private final ContaEmailService contaEmailService;
+
+    /** Perfis criados por autocadastro ficam fora das listagens públicas até a curadoria verificar. */
+    public static final String STATUS_PENDENTE_APROVACAO = "PENDENTE_APROVACAO";
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
@@ -37,12 +42,18 @@ public class AtletaService {
             AtletaRepository atletaRepository,
             ItemAcervoRepository acervoRepository,
             PasswordEncoder passwordEncoder,
-            AsaasService asaasService
+            AsaasService asaasService,
+            ContaEmailService contaEmailService
     ) {
         this.atletaRepository = atletaRepository;
         this.acervoRepository = acervoRepository;
         this.passwordEncoder = passwordEncoder;
         this.asaasService = asaasService;
+        this.contaEmailService = contaEmailService;
+    }
+
+    public static boolean isPublicavel(Atleta atleta) {
+        return !STATUS_PENDENTE_APROVACAO.equals(atleta.getStatusAtleta());
     }
 
     /* ==========================
@@ -131,6 +142,46 @@ public class AtletaService {
         atleta.setAtualizadoEm(Instant.now());
 
         return atletaRepository.save(atleta);
+    }
+
+    /* ==========================
+       AUTOCADASTRO (PÚBLICO)
+       ========================== */
+
+    public Mono<Atleta> registrar(AtletaRegistroDTO dto) {
+        String email = dto.email().trim().toLowerCase(Locale.ROOT);
+        String cpf = dto.cpf().replaceAll("\\D", "");
+
+        if (cpf.length() != 11) {
+            return Mono.error(new IllegalArgumentException("CPF inválido"));
+        }
+
+        return contaEmailService.garantirEmailLivre(email)
+                .then(slugUnico(dto.nome().trim()))
+                .flatMap(slug -> {
+                    Atleta atleta = new Atleta();
+                    atleta.setNome(dto.nome().trim());
+                    atleta.setSlug(slug);
+                    atleta.setEmail(email);
+                    atleta.setCpf(cpf);
+                    atleta.setSenha(passwordEncoder.encode(dto.senha()));
+                    atleta.setCategoria(dto.categoria() != null ? dto.categoria() : Atleta.CategoriaAtleta.ATIVA);
+                    atleta.setStatusVerificacao(Atleta.StatusVerificacao.PENDENTE);
+                    atleta.setStatusAtleta(STATUS_PENDENTE_APROVACAO);
+                    atleta.setContratoAssinado(false);
+                    atleta.setCriadoEm(Instant.now());
+                    atleta.setAtualizadoEm(Instant.now());
+                    return atletaRepository.save(atleta);
+                });
+    }
+
+    private Mono<String> slugUnico(String nome) {
+        String base = generateSlug(nome);
+        return atletaRepository.findBySlug(base)
+                .hasElement()
+                .map(existe -> existe
+                        ? base + "-" + java.util.UUID.randomUUID().toString().substring(0, 4)
+                        : base);
     }
 
     /* ==========================

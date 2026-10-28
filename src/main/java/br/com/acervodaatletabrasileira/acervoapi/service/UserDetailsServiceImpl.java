@@ -30,6 +30,13 @@ public class UserDetailsServiceImpl implements ReactiveUserDetailsService {
 
     @Override
     public Mono<UserDetails> findByUsername(String identifier) {
+        // Contas novas guardam o e-mail em minúsculas; aceita digitação com outra caixa.
+        String minusculo = identifier.toLowerCase(java.util.Locale.ROOT);
+        return buscar(identifier)
+                .switchIfEmpty(Mono.defer(() -> minusculo.equals(identifier) ? Mono.empty() : buscar(minusculo)));
+    }
+
+    private Mono<UserDetails> buscar(String identifier) {
         // 1. Tenta buscar como ADMIN
         return adminRepository.findByEmail(identifier)
                 .map(admin -> User.builder()
