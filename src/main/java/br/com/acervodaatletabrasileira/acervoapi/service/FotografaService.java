@@ -18,14 +18,17 @@ public class FotografaService {
 
     private final FotografaRepository fotografaRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ContaEmailService contaEmailService;
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
 
     public FotografaService(FotografaRepository fotografaRepository,
-                            PasswordEncoder passwordEncoder) {
+                            PasswordEncoder passwordEncoder,
+                            ContaEmailService contaEmailService) {
         this.fotografaRepository = fotografaRepository;
         this.passwordEncoder = passwordEncoder;
+        this.contaEmailService = contaEmailService;
     }
 
     /* ==========================
@@ -48,21 +51,26 @@ public class FotografaService {
      * Lista apenas fotógrafas públicas
      * (ativas, espólio ou memorial)
      */
+    /** Cadastros novos nascem INATIVA e só aparecem publicamente depois da aprovação (ATIVA). */
+    static boolean isPublica(Fotografa f) {
+        return f.getStatusFotografa() != Fotografa.StatusFotografa.BLOQUEADA
+                && f.getStatusFotografa() != Fotografa.StatusFotografa.INATIVA;
+    }
+
     public Flux<Fotografa> findAllPublicas() {
         return fotografaRepository.findAll()
                 .filter(f ->
-                        f.getStatusFotografa() != Fotografa.StatusFotografa.BLOQUEADA
-                );
+                        isPublica(f));
     }
 
     public Mono<Fotografa> findPublicaById(String id) {
         return fotografaRepository.findById(id)
-                .filter(f -> f.getStatusFotografa() != Fotografa.StatusFotografa.BLOQUEADA);
+                .filter(FotografaService::isPublica);
     }
 
     public Mono<Fotografa> findPublicaBySlug(String slug) {
         return fotografaRepository.findBySlug(slug)
-                .filter(f -> f.getStatusFotografa() != Fotografa.StatusFotografa.BLOQUEADA);
+                .filter(FotografaService::isPublica);
     }
 
     /* ==========================
@@ -86,6 +94,12 @@ public class FotografaService {
        ========================== */
 
     public Mono<Fotografa> createCadastro(Fotografa fotografa) {
+
+        return contaEmailService.garantirEmailLivre(fotografa.getEmail())
+                .then(Mono.defer(() -> salvarCadastro(fotografa)));
+    }
+
+    private Mono<Fotografa> salvarCadastro(Fotografa fotografa) {
 
         fotografa.setId(null);
         fotografa.setSlug(generateSlug(fotografa.getNome()));

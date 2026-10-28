@@ -108,6 +108,11 @@ public class SecurityConfig {
                     exchanges.pathMatchers(HttpMethod.POST, "/fotografas/cadastro").permitAll();
 
                 /* ==========================
+                   2b2. AUTOCADASTRO ATLETA
+                   ========================== */
+                    exchanges.pathMatchers(HttpMethod.POST, "/atletas/registro").permitAll();
+
+                /* ==========================
                    2c. WEBHOOK ASAAS
                    ========================== */
                     // Rota pública por natureza (o gateway não envia JWT).
