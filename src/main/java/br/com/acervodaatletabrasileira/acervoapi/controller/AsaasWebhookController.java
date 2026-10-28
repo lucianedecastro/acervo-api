@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Map;
 
 /**
@@ -46,8 +48,16 @@ public class AsaasWebhookController {
             @RequestHeader(value = "asaas-access-token", required = false) String tokenRecebido,
             @RequestBody Map<String, Object> payload
     ) {
-        if (webhookTokenEsperado != null && !webhookTokenEsperado.isBlank()
-                && !webhookTokenEsperado.equals(tokenRecebido)) {
+        // Falha fechado: sem token configurado o endpoint não aceita nada,
+        // senão qualquer POST poderia marcar transações como liquidadas.
+        if (webhookTokenEsperado == null || webhookTokenEsperado.isBlank()) {
+            log.error("Webhook Asaas rejeitado: 'asaas.webhook-token' não está configurado");
+            return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build());
+        }
+
+        if (tokenRecebido == null || !MessageDigest.isEqual(
+                webhookTokenEsperado.getBytes(StandardCharsets.UTF_8),
+                tokenRecebido.getBytes(StandardCharsets.UTF_8))) {
             log.warn("Webhook Asaas recebido com token inválido");
             return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
         }
