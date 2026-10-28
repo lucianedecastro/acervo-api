@@ -32,6 +32,9 @@ public class SecurityConfig {
     @Value("${app.admin.register-enabled:false}")
     private boolean adminRegisterEnabled;
 
+    @Value("${app.swagger.enabled:false}")
+    private boolean swaggerEnabled;
+
     public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
     }
@@ -125,7 +128,11 @@ public class SecurityConfig {
                 /* ==========================
                    3. SWAGGER / DOCUMENTAÇÃO
                    ========================== */
-                    exchanges.pathMatchers(SWAGGER_WHITELIST).permitAll();
+                    // Documentação só é pública quando habilitada explicitamente (SWAGGER_ENABLED=true).
+                    // Desligada, o springdoc nem registra as rotas e a whitelist não é aberta.
+                    if (swaggerEnabled) {
+                        exchanges.pathMatchers(SWAGGER_WHITELIST).permitAll();
+                    }
 
                 /* ==========================
                    3b. ADMINISTRATIVO

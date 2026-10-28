@@ -60,6 +60,12 @@ class SecurityRulesTest {
     }
 
     @Test
+    void swagger_desligadoPorPadraoExigeLogin() {
+        client.get().uri("/v3/api-docs").exchange().expectStatus().isUnauthorized();
+        client.get().uri("/swagger-ui.html").exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
     void modalidadesAdmin_anonimoRecebe401() {
         client.get().uri("/modalidades/admin").exchange().expectStatus().isUnauthorized();
     }
@@ -91,6 +97,24 @@ class SecurityRulesTest {
         client.post().uri("/webhooks/asaas").header("asaas-access-token", "segredo-de-teste")
                 .contentType(MediaType.APPLICATION_JSON).bodyValue("{\"event\":\"PAYMENT_RECEIVED\"}")
                 .exchange().expectStatus().isOk();
+    }
+}
+
+@WebFluxTest(controllers = AsaasWebhookController.class)
+@Import({SecurityConfig.class, JwtAuthFilter.class})
+@TestPropertySource(properties = "app.swagger.enabled=true")
+class SwaggerLigadoTest {
+
+    @Autowired WebTestClient client;
+
+    @MockBean UserDetailsServiceImpl userDetailsServiceImpl;
+    @MockBean JwtService jwtService;
+    @MockBean AsaasWebhookService webhookService;
+
+    @Test
+    void liberaSwaggerQuandoHabilitado() {
+        // Sem springdoc no slice o recurso não existe (404), mas não é barrado pela segurança (401).
+        client.get().uri("/v3/api-docs").exchange().expectStatus().isNotFound();
     }
 }
 
