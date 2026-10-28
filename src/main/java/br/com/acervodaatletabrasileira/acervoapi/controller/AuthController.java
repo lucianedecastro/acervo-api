@@ -1,5 +1,7 @@
 package br.com.acervodaatletabrasileira.acervoapi.controller;
 
+import jakarta.validation.Valid;
+import br.com.acervodaatletabrasileira.acervoapi.dto.AdminRegistroRequest;
 import br.com.acervodaatletabrasileira.acervoapi.dto.AuthRequest;
 import br.com.acervodaatletabrasileira.acervoapi.model.UsuarioAdmin;
 import br.com.acervodaatletabrasileira.acervoapi.service.AuthService;
@@ -75,7 +77,7 @@ public class AuthController {
     @Hidden
     @PostMapping("/register-admin")
     public Mono<ResponseEntity<Map<String, String>>> registerAdminTemp(
-            @RequestBody AuthRequest authRequest
+            @Valid @RequestBody AdminRegistroRequest authRequest
     ) {
         UsuarioAdmin admin = new UsuarioAdmin();
         admin.setEmail(authRequest.email());

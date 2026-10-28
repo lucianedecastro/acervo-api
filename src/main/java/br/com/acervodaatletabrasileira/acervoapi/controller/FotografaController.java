@@ -1,5 +1,6 @@
 package br.com.acervodaatletabrasileira.acervoapi.controller;
 
+import br.com.acervodaatletabrasileira.acervoapi.dto.FotografaCadastroDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.FotografaPerfilDTO;
 import br.com.acervodaatletabrasileira.acervoapi.dto.FotografaPublicoDTO;
 import br.com.acervodaatletabrasileira.acervoapi.model.Fotografa;
@@ -8,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -96,8 +98,9 @@ public class FotografaController {
     @Operation(summary = "Cadastro inicial de fotógrafa (pendente de aprovação)")
     @PostMapping("/cadastro")
     @ResponseStatus(HttpStatus.CREATED)
-    public Mono<Fotografa> cadastrar(@RequestBody Fotografa fotografa) {
-        return fotografaService.createCadastro(fotografa);
+    public Mono<FotografaPerfilDTO> cadastrar(@Valid @RequestBody FotografaCadastroDTO dto) {
+        return fotografaService.createCadastro(dto.toModel())
+                .map(FotografaPerfilDTO::fromModel);
     }
 
     /* =====================================================

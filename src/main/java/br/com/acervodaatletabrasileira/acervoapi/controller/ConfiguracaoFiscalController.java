@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -41,7 +42,7 @@ public class ConfiguracaoFiscalController {
     @Operation(summary = "Atualiza as taxas financeiras", security = @SecurityRequirement(name = "bearerAuth"))
     @PutMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public Mono<ConfiguracaoFiscal> atualizar(@RequestBody ConfiguracaoFiscalDTO dto, Principal principal) {
+    public Mono<ConfiguracaoFiscal> atualizar(@Valid @RequestBody ConfiguracaoFiscalDTO dto, Principal principal) {
         return repository.findById(CONFIG_ID)
                 .defaultIfEmpty(new ConfiguracaoFiscal())
                 .flatMap(config -> {
