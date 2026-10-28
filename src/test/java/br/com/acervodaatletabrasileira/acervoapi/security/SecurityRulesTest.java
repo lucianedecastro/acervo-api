@@ -30,7 +30,8 @@ import static org.springframework.security.test.web.reactive.server.SecurityMock
 @Import({SecurityConfig.class, JwtAuthFilter.class})
 @TestPropertySource(properties = {
         "app.admin.register-enabled=false",
-        "asaas.webhook-token=segredo-de-teste"
+        "asaas.webhook-token=segredo-de-teste",
+        "cors.allowed-origins=https://app.exemplo.com, https://www.exemplo.com"
 })
 class SecurityRulesTest {
 
@@ -44,6 +45,31 @@ class SecurityRulesTest {
     @MockBean AsaasWebhookService webhookService;
 
     private static final String ADMIN_BODY = "{\"email\":\"x@x.com\",\"senha\":\"123456\"}";
+
+    @Test
+    void cors_preflightDeOrigemPermitidaRecebeCabecalho() {
+        client.options().uri("http://localhost/modalidades")
+                .header("Origin", "https://www.exemplo.com")
+                .header("Access-Control-Request-Method", "GET")
+                .exchange().expectStatus().isOk()
+                .expectHeader().valueEquals("Access-Control-Allow-Origin", "https://www.exemplo.com");
+    }
+
+    @Test
+    void cors_preflightDeOrigemNaoListadaERejeitado() {
+        client.options().uri("http://localhost/modalidades")
+                .header("Origin", "https://site-malicioso.com")
+                .header("Access-Control-Request-Method", "GET")
+                .exchange().expectStatus().isForbidden();
+    }
+
+    @Test
+    void cors_localhostNaoEPermitidoPorPadrao() {
+        client.options().uri("http://localhost/modalidades")
+                .header("Origin", "http://localhost:5173")
+                .header("Access-Control-Request-Method", "GET")
+                .exchange().expectStatus().isForbidden();
+    }
 
     @Test
     void registerAdmin_atletaLogadaRecebe403() {

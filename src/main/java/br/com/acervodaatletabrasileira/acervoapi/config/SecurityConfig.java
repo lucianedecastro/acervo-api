@@ -32,6 +32,12 @@ public class SecurityConfig {
     @Value("${app.admin.register-enabled:false}")
     private boolean adminRegisterEnabled;
 
+    @Value("${cors.allowed-origins}")
+    private List<String> corsAllowedOrigins;
+
+    @Value("${cors.allow-credentials:true}")
+    private boolean corsAllowCredentials;
+
     @Value("${app.swagger.enabled:false}")
     private boolean swaggerEnabled;
 
@@ -235,11 +241,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        config.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "https://acervo-front-one.vercel.app",
-                "https://www.acervodaatletabrasileira.com.br"
-        ));
+        // Origens vêm de cors.allowed-origins (CORS_ALLOWED_ORIGINS), separadas por vírgula.
+        // "*" é descartado: não pode ser combinado com credenciais.
+        config.setAllowedOrigins(corsAllowedOrigins.stream()
+                .map(String::trim)
+                .filter(o -> !o.isEmpty() && !"*".equals(o))
+                .toList());
 
         config.setAllowedMethods(List.of(
                 "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
@@ -252,7 +259,7 @@ public class SecurityConfig {
                 "Accept"
         ));
 
-        config.setAllowCredentials(true);
+        config.setAllowCredentials(corsAllowCredentials);
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();

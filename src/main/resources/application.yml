@@ -33,10 +33,9 @@ cloudinary:
   api-secret: ${CLOUDINARY_API_SECRET:}
 
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://acervodaatletabrasileira.com.br}
-  allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
-  allowed-headers: Authorization,Content-Type
-  allow-credentials: true
+  # Lista separada por vírgula. Em dev local, acrescente http://localhost:5173 via CORS_ALLOWED_ORIGINS.
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://www.acervodaatletabrasileira.com.br,https://acervodaatletabrasileira.com.br,https://acervo-front-one.vercel.app}
+  allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
 
 asaas:
   base-url: https://www.asaas.com/api/v3
